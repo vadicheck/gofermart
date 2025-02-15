@@ -2,11 +2,12 @@ package logger
 
 import (
 	"context"
-	"github.com/vadicheck/gofermart/pkg/logger/formatter"
-	"github.com/vadicheck/gofermart/pkg/logger/options"
 	"runtime/debug"
 
 	"github.com/sirupsen/logrus"
+
+	"github.com/vadicheck/gofermart/pkg/logger/formatter"
+	"github.com/vadicheck/gofermart/pkg/logger/options"
 )
 
 type contextKey string

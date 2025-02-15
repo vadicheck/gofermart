@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"github.com/vadicheck/gofermart/pkg/logger/options"
 	"reflect"
+
+	"github.com/sirupsen/logrus"
+
+	"github.com/vadicheck/gofermart/pkg/logger/options"
 )
 
 type JSONFormatter struct {
