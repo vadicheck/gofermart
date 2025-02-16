@@ -1,7 +1,11 @@
 package gophermart
 
-import "context"
+import (
+	"context"
+
+	"github.com/vadicheck/gofermart/pkg/logger"
+)
 
 type Gophermart interface {
-	CreateUser(ctx context.Context, userID int64) (int64, error)
+	CreateUser(ctx context.Context, login, password string, logger logger.LogClient) (int64, error)
 }

@@ -5,15 +5,17 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
-	"log/slog"
-
 	"github.com/golang-migrate/migrate/v4"
+	"github.com/jackc/pgconn"
+	"github.com/jackc/pgerrcode"
 	_ "github.com/jackc/pgx/v4/stdlib"
+	"log"
 
 	"github.com/vadicheck/gofermart/internal/app/config"
 	"github.com/vadicheck/gofermart/internal/app/migration"
+	"github.com/vadicheck/gofermart/internal/app/storage"
 	"github.com/vadicheck/gofermart/pkg/logger"
+	pass "github.com/vadicheck/gofermart/pkg/password"
 )
 
 type Storage struct {
@@ -37,7 +39,7 @@ func New(cfg *config.Config, logger logger.LogClient) (*Storage, error) {
 	}
 	if err := m.Up(); err != nil {
 		if errors.Is(err, migrate.ErrNoChange) {
-			slog.Info("No migrations needed")
+			log.Println("No migrations needed")
 		} else {
 			log.Panic(err)
 		}
@@ -46,6 +48,43 @@ func New(cfg *config.Config, logger logger.LogClient) (*Storage, error) {
 	return &Storage{db: db}, nil
 }
 
-func (s *Storage) CreateUser(ctx context.Context, userID int64) (int64, error) {
-	return userID, nil
+func (s *Storage) CreateUser(
+	ctx context.Context,
+	login, password string,
+	logger logger.LogClient,
+) (int64, error) {
+	const op = "storage.postgres.CreateUser"
+	const insertURL = "INSERT INTO public.users (login, password) VALUES ($1,$2) RETURNING id"
+
+	stmt, err := s.db.Prepare(insertURL)
+	if err != nil {
+		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			logger.Error(fmt.Errorf("prepare sql error: %w", err))
+		}
+	}()
+
+	hashPassword, err := pass.HashPassword(password)
+	if err != nil {
+		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+
+	var id int64
+
+	err = stmt.QueryRowContext(ctx, login, hashPassword).Scan(&id)
+	if err != nil {
+		var pgErr *pgconn.PgError
+
+		if errors.As(err, &pgErr) && pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
+			if pgErr.Code == pgerrcode.UniqueViolation {
+				return 0, storage.ErrLoginAlreadyExists
+			}
+		}
+
+		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return id, nil
 }

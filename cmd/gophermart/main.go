@@ -7,6 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/go-playground/validator/v10"
+
 	"github.com/vadicheck/gofermart/internal/app/config"
 	"github.com/vadicheck/gofermart/internal/app/httpserver"
 	"github.com/vadicheck/gofermart/internal/app/log"
@@ -32,9 +34,15 @@ func main() {
 		panic(err)
 	}
 
-	httpApp := httpserver.New(ctx, cfg, logger, storage)
+	httpApp := httpserver.New(
+		ctx,
+		cfg,
+		logger,
+		storage,
+		*validator.New(),
+	)
 
-	httpServer, err := httpApp.Run()
+	httpServer, err := httpApp.Run(logger)
 	if err != nil {
 		panic(err)
 	}
