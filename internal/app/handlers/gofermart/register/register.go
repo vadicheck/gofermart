@@ -62,8 +62,16 @@ func New(
 			if responseErr := httperr.RespondWithJSON(w, respError.Code, respError); responseErr != nil {
 				logger.Error(fmt.Errorf("error responding with error: %w", responseErr))
 			}
-
 			logger.Error(err)
+			return
 		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+
+		if err := json.NewEncoder(w).Encode(nil); err != nil {
+			logger.Error(fmt.Errorf("error responding with error: %w", err))
+		}
+		return
 	}
 }

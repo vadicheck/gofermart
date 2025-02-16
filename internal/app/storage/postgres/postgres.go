@@ -41,9 +41,9 @@ func (s *Storage) CreateUser(
 	logger logger.LogClient,
 ) (int64, error) {
 	const op = "storage.postgres.CreateUser"
-	const insertURL = "INSERT INTO public.users (login, password) VALUES ($1,$2) RETURNING id"
+	const insertSQL = "INSERT INTO public.users (login, password) VALUES ($1,$2) RETURNING id"
 
-	stmt, err := s.db.Prepare(insertURL)
+	stmt, err := s.db.Prepare(insertSQL)
 	if err != nil {
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
@@ -74,4 +74,23 @@ func (s *Storage) CreateUser(
 	}
 
 	return id, nil
+}
+
+func (s *Storage) DeleteAllUsers(ctx context.Context, logger logger.LogClient) error {
+	const op = "storage.postgres.DeleteAllUsers"
+	const deleteSQL = "DELETE FROM users WHERE id <> 0"
+
+	stmt, err := s.db.Prepare(deleteSQL)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			logger.Error(fmt.Errorf("prepare sql error: %w", err))
+		}
+	}()
+
+	_, err = stmt.ExecContext(ctx)
+
+	return err
 }

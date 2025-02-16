@@ -2,8 +2,10 @@ package password
 
 import "golang.org/x/crypto/bcrypt"
 
+const passwordCost = 14
+
 func HashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), passwordCost)
 	return string(bytes), err
 }
 
