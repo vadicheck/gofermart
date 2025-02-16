@@ -13,10 +13,12 @@ tasks:
 
   test:
     desc: "Run tests"
+    env:
+      LOG_LEVEL: info
+      DATABASE_URI: postgresql://app:1234@localhost:5445/app?sslmode=disable
+      MIGRATIONS_FILE_PATH: file:///Users/chvss/web/golang/gofermart/internal/app/migration/migrations
     cmds:
-      - go test -v ./internal/handlers/url/save
-      - go test -v ./internal/handlers/url/get
-      - go test -v ./internal/handlers/url/shorten
+      - go test -v ./internal/app/handlers/gofermart/register
 
   imports:
     desc: "Run imports"
@@ -76,6 +78,7 @@ tasks:
             exit 1
             ;;
         esac
+
   lint:
       desc: Run linters using golangci-lint
       cmds:

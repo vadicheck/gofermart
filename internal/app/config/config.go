@@ -10,6 +10,7 @@ type Config struct {
 	DatabaseDSN          string `env:"DATABASE_URI"`
 	AccrualSystemAddress string `env:"ACCRUAL_SYSTEM_ADDRESS"`
 	LogLevel             string `env:"LOG_LEVEL"`
+	MigrationsFilePath   string `env:"MIGRATIONS_FILE_PATH"`
 }
 
 func NewConfig() (*Config, error) {
@@ -19,6 +20,7 @@ func NewConfig() (*Config, error) {
 	flag.StringVar(&cfg.DatabaseDSN, "d", "", "database DSN")
 	flag.StringVar(&cfg.AccrualSystemAddress, "r", "", "accrual system address")
 	flag.StringVar(&cfg.LogLevel, "ll", "", "level of logs")
+	flag.StringVar(&cfg.MigrationsFilePath, "mp", "file://internal/app/migration/migrations", "migrations file path")
 
 	flag.Parse()
 
@@ -36,6 +38,10 @@ func NewConfig() (*Config, error) {
 
 	if logLevel := os.Getenv("LOG_LEVEL"); logLevel != "" {
 		cfg.LogLevel = logLevel
+	}
+
+	if migrationsFilePath := os.Getenv("MIGRATIONS_FILE_PATH"); migrationsFilePath != "" {
+		cfg.MigrationsFilePath = migrationsFilePath
 	}
 
 	return &cfg, nil

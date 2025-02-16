@@ -25,9 +25,7 @@ func ExecuteMigrations(cfg *config.Config, log logger.LogClient) error {
 
 	defer driver.Close()
 
-	m, err := migrate.NewWithDatabaseInstance(
-		"file://internal/app/migration/migrations",
-		"postgres", driver)
+	m, err := migrate.NewWithDatabaseInstance(cfg.MigrationsFilePath, "postgres", driver)
 	if err != nil {
 		return fmt.Errorf("failed create migration instance %w", err)
 	}

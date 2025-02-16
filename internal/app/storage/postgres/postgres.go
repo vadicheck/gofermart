@@ -5,11 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/golang-migrate/migrate/v4"
+
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgerrcode"
 	_ "github.com/jackc/pgx/v4/stdlib"
-	"log"
 
 	"github.com/vadicheck/gofermart/internal/app/config"
 	"github.com/vadicheck/gofermart/internal/app/migration"
@@ -31,18 +30,6 @@ func New(cfg *config.Config, logger logger.LogClient) (*Storage, error) {
 	db, err := sql.Open("pgx", cfg.DatabaseDSN)
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect to database: %v", err)
-	}
-
-	m, err := migrate.New("file://internal/app/migration/migrations", cfg.DatabaseDSN)
-	if err != nil {
-		log.Panic(err)
-	}
-	if err := m.Up(); err != nil {
-		if errors.Is(err, migrate.ErrNoChange) {
-			log.Println("No migrations needed")
-		} else {
-			log.Panic(err)
-		}
 	}
 
 	return &Storage{db: db}, nil
