@@ -17,6 +17,6 @@ func New(storage gophermart.Gophermart) *Service {
 	}
 }
 
-func (s *Service) CreateUser(ctx context.Context, login, password string, logger logger.LogClient) (int64, error) {
+func (s *Service) CreateUser(ctx context.Context, login, password string, logger logger.LogClient) (int, error) {
 	return s.storage.CreateUser(ctx, login, password, logger)
 }

@@ -3,6 +3,7 @@ package config
 import (
 	"flag"
 	"os"
+	"time"
 )
 
 type Config struct {
@@ -11,6 +12,12 @@ type Config struct {
 	AccrualSystemAddress string `env:"ACCRUAL_SYSTEM_ADDRESS"`
 	LogLevel             string `env:"LOG_LEVEL"`
 	MigrationsFilePath   string `env:"MIGRATIONS_FILE_PATH"`
+	Jwt                  JwtConfig
+}
+
+type JwtConfig struct {
+	JwtSecret      string `env:"JWT_SECRET"`
+	JwtTokenExpire time.Duration
 }
 
 func NewConfig() (*Config, error) {
@@ -23,6 +30,8 @@ func NewConfig() (*Config, error) {
 	flag.StringVar(&cfg.MigrationsFilePath, "mp", "file://internal/app/migration/migrations", "migrations file path")
 
 	flag.Parse()
+
+	cfg.Jwt.JwtTokenExpire = time.Hour * 24
 
 	if httpAddress := os.Getenv("RUN_ADDRESS"); httpAddress != "" {
 		cfg.HTTPAddress = httpAddress
@@ -42,6 +51,12 @@ func NewConfig() (*Config, error) {
 
 	if migrationsFilePath := os.Getenv("MIGRATIONS_FILE_PATH"); migrationsFilePath != "" {
 		cfg.MigrationsFilePath = migrationsFilePath
+	}
+
+	if jwtSecret := os.Getenv("JWT_SECRET"); jwtSecret != "" {
+		cfg.Jwt.JwtSecret = jwtSecret
+	} else {
+		cfg.Jwt.JwtSecret = "secretkey"
 	}
 
 	return &cfg, nil

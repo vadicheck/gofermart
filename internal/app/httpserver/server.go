@@ -11,6 +11,7 @@ import (
 	"github.com/go-playground/validator/v10"
 
 	"github.com/vadicheck/gofermart/internal/app/config"
+	"github.com/vadicheck/gofermart/internal/app/handlers/gofermart/login"
 	"github.com/vadicheck/gofermart/internal/app/handlers/gofermart/register"
 	"github.com/vadicheck/gofermart/internal/app/repository/gophermart"
 	"github.com/vadicheck/gofermart/internal/app/services/gofermart/user"
@@ -55,9 +56,18 @@ func New(
 
 	r.Post("/api/user/register", register.New(
 		ctx,
+		cfg.Jwt,
 		logger,
 		validator,
 		userService,
+	))
+
+	r.Post("/api/user/login", login.New(
+		ctx,
+		cfg.Jwt,
+		logger,
+		validator,
+		storage,
 	))
 
 	return &HTTPServer{

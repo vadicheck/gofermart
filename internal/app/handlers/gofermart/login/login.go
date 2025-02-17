@@ -1,4 +1,4 @@
-package register
+package login
 
 import (
 	"context"
@@ -12,18 +12,16 @@ import (
 	"github.com/vadicheck/gofermart/internal/app/config"
 	"github.com/vadicheck/gofermart/internal/app/httpserver/models/gofermart"
 	"github.com/vadicheck/gofermart/internal/app/httpserver/response"
-	"github.com/vadicheck/gofermart/internal/app/storage"
+	"github.com/vadicheck/gofermart/internal/app/repository/gophermart"
+	storageerr "github.com/vadicheck/gofermart/internal/app/storage"
 	"github.com/vadicheck/gofermart/pkg/logger"
+	"github.com/vadicheck/gofermart/pkg/password"
 	"github.com/vadicheck/gofermart/pkg/secure/jwt"
 )
 
-type RegRequest struct {
+type Request struct {
 	Login    string `json:"login" validate:"required,alphanum,max=140"`
 	Password string `json:"password" validate:"required,max=140"`
-}
-
-type regService interface {
-	CreateUser(ctx context.Context, login, password string, logger logger.LogClient) (int, error)
 }
 
 func New(
@@ -31,10 +29,10 @@ func New(
 	jwtConfig config.JwtConfig,
 	logger logger.LogClient,
 	validator validator.Validate,
-	regService regService,
+	storage gophermart.Gophermart,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var request RegRequest
+		var request Request
 
 		dec := json.NewDecoder(r.Body)
 		if decodeErr := dec.Decode(&request); decodeErr != nil {
@@ -49,22 +47,23 @@ func New(
 			return
 		}
 
-		userID, err := regService.CreateUser(ctx, request.Login, request.Password, logger)
+		user, err := storage.GetUserByLogin(ctx, request.Login)
 		if err != nil {
-			respError := gofermart.NewError(http.StatusInternalServerError, "Error creating user")
-
-			if errors.Is(err, storage.ErrLoginAlreadyExists) {
-				respError = gofermart.NewError(http.StatusConflict, "Login already exists")
+			if errors.Is(err, storageerr.ErrUserNotFound) {
+				response.ResponseError(w, gofermart.NewError(http.StatusNotFound, "user not found"), logger)
+			} else {
+				response.ResponseError(w, gofermart.NewError(http.StatusInternalServerError, "can't find user"), logger)
+				logger.Error(fmt.Errorf("can't find user: %w", err))
 			}
-
-			if responseErr := response.RespondWithJSON(w, respError.Code, respError); responseErr != nil {
-				logger.Error(fmt.Errorf("error responding with error: %w", responseErr))
-			}
-			logger.Error(err)
 			return
 		}
 
-		token, err := jwt.BuildJWTString(jwtConfig.JwtSecret, jwtConfig.JwtTokenExpire, userID)
+		if !password.CheckPasswordHash(request.Password, user.Password) {
+			response.ResponseError(w, gofermart.NewError(http.StatusUnauthorized, "username or password is incorrect"), logger)
+			return
+		}
+
+		token, err := jwt.BuildJWTString(jwtConfig.JwtSecret, jwtConfig.JwtTokenExpire, user.Id)
 		if err != nil {
 			response.ResponseError(w, gofermart.NewError(http.StatusInternalServerError, "can't build jwt token"), logger)
 			logger.Error(fmt.Errorf("can't build jwt token: %w", err))
@@ -73,7 +72,7 @@ func New(
 
 		w.Header().Set("Authorization", token)
 
-		if responseErr := response.RespondWithJSON(w, http.StatusCreated, nil); responseErr != nil {
+		if responseErr := response.RespondWithJSON(w, http.StatusOK, nil); responseErr != nil {
 			logger.Error(fmt.Errorf("error responding with error: %w", responseErr))
 		}
 		return

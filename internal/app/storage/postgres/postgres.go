@@ -12,6 +12,7 @@ import (
 
 	"github.com/vadicheck/gofermart/internal/app/config"
 	"github.com/vadicheck/gofermart/internal/app/migration"
+	"github.com/vadicheck/gofermart/internal/app/models/gofermart"
 	"github.com/vadicheck/gofermart/internal/app/storage"
 	"github.com/vadicheck/gofermart/pkg/logger"
 	pass "github.com/vadicheck/gofermart/pkg/password"
@@ -39,7 +40,7 @@ func (s *Storage) CreateUser(
 	ctx context.Context,
 	login, password string,
 	logger logger.LogClient,
-) (int64, error) {
+) (int, error) {
 	const op = "storage.postgres.CreateUser"
 	const insertSQL = "INSERT INTO public.users (login, password) VALUES ($1,$2) RETURNING id"
 
@@ -58,7 +59,7 @@ func (s *Storage) CreateUser(
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 
-	var id int64
+	var id int
 
 	err = stmt.QueryRowContext(ctx, login, hashPassword).Scan(&id)
 	if err != nil {
@@ -74,6 +75,24 @@ func (s *Storage) CreateUser(
 	}
 
 	return id, nil
+}
+
+func (s *Storage) GetUserByLogin(ctx context.Context, login string) (gofermart.User, error) {
+	const op = "storage.postgres.GetUserByLogin"
+	const selectSQL = "SELECT id, login, password FROM users WHERE login = $1"
+
+	var user gofermart.User
+
+	row := s.db.QueryRowContext(ctx, selectSQL, login)
+
+	err := row.Scan(&user.Id, &user.Login, &user.Password)
+	if errors.Is(err, sql.ErrNoRows) {
+		return user, storage.ErrUserNotFound
+	} else if err != nil {
+		return user, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return user, nil
 }
 
 func (s *Storage) DeleteAllUsers(ctx context.Context, logger logger.LogClient) error {

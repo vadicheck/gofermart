@@ -117,6 +117,7 @@ func TestNew(t *testing.T) {
 
 			handler := New(
 				ctx,
+				cfg.Jwt,
 				logger,
 				*validator.New(),
 				userService,
