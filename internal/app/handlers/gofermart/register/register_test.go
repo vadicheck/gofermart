@@ -102,8 +102,6 @@ func TestNew(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fmt.Println(tt.request.Login)
-
 			jsonData, err := json.Marshal(tt.request)
 			if err != nil {
 				fmt.Println("Ошибка кодирования в JSON:", err)

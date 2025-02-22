@@ -85,7 +85,7 @@ func (s *Storage) GetUserByLogin(ctx context.Context, login string) (gofermart.U
 
 	row := s.db.QueryRowContext(ctx, selectSQL, login)
 
-	err := row.Scan(&user.Id, &user.Login, &user.Password)
+	err := row.Scan(&user.ID, &user.Login, &user.Password)
 	if errors.Is(err, sql.ErrNoRows) {
 		return user, storage.ErrUserNotFound
 	} else if err != nil {

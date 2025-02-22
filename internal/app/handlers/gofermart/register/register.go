@@ -76,6 +76,5 @@ func New(
 		if responseErr := response.RespondWithJSON(w, http.StatusCreated, nil); responseErr != nil {
 			logger.Error(fmt.Errorf("error responding with error: %w", responseErr))
 		}
-		return
 	}
 }

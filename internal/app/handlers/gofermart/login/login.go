@@ -63,7 +63,7 @@ func New(
 			return
 		}
 
-		token, err := jwt.BuildJWTString(jwtConfig.JwtSecret, jwtConfig.JwtTokenExpire, user.Id)
+		token, err := jwt.BuildJWTString(jwtConfig.JwtSecret, jwtConfig.JwtTokenExpire, user.ID)
 		if err != nil {
 			response.ResponseError(w, gofermart.NewError(http.StatusInternalServerError, "can't build jwt token"), logger)
 			logger.Error(fmt.Errorf("can't build jwt token: %w", err))
@@ -75,6 +75,5 @@ func New(
 		if responseErr := response.RespondWithJSON(w, http.StatusOK, nil); responseErr != nil {
 			logger.Error(fmt.Errorf("error responding with error: %w", responseErr))
 		}
-		return
 	}
 }
