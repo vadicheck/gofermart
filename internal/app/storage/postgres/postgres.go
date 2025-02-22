@@ -11,6 +11,7 @@ import (
 	_ "github.com/jackc/pgx/v4/stdlib"
 
 	"github.com/vadicheck/gofermart/internal/app/config"
+	"github.com/vadicheck/gofermart/internal/app/constants"
 	"github.com/vadicheck/gofermart/internal/app/migration"
 	"github.com/vadicheck/gofermart/internal/app/models/gofermart"
 	"github.com/vadicheck/gofermart/internal/app/storage"
@@ -112,4 +113,58 @@ func (s *Storage) DeleteAllUsers(ctx context.Context, logger logger.LogClient) e
 	_, err = stmt.ExecContext(ctx)
 
 	return err
+}
+
+func (s *Storage) CreateOrder(
+	ctx context.Context,
+	orderID, userID int,
+	logger logger.LogClient,
+) (int, error) {
+	const op = "storage.postgres.CreateOrder"
+	const insertSQL = "INSERT INTO public.orders (user_id, order_id, status) VALUES ($1,$2,$3) RETURNING id"
+
+	stmt, err := s.db.Prepare(insertSQL)
+	if err != nil {
+		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			logger.Error(fmt.Errorf("prepare sql error: %w", err))
+		}
+	}()
+
+	var id int
+
+	err = stmt.QueryRowContext(ctx, userID, orderID, constants.StatusNew).Scan(&id)
+	if err != nil {
+		var pgErr *pgconn.PgError
+
+		if errors.As(err, &pgErr) && pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
+			if pgErr.Code == pgerrcode.UniqueViolation {
+				return 0, storage.ErrOrderAlreadyExists
+			}
+		}
+
+		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return id, nil
+}
+
+func (s *Storage) GetOrderByID(ctx context.Context, orderID int) (gofermart.Order, error) {
+	const op = "storage.postgres.GetOrderByID"
+	const selectSQL = "SELECT id, user_id, order_id, status, created_at, updated_at FROM orders WHERE order_id = $1"
+
+	var order gofermart.Order
+
+	row := s.db.QueryRowContext(ctx, selectSQL, orderID)
+
+	err := row.Scan(&order.ID, &order.UserID, &order.OrderID, &order.Status, &order.CreatedAt, &order.UpdatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return order, storage.ErrOrderNotFound
+	} else if err != nil {
+		return order, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return order, nil
 }

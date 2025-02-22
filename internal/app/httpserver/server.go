@@ -13,7 +13,10 @@ import (
 	"github.com/vadicheck/gofermart/internal/app/config"
 	"github.com/vadicheck/gofermart/internal/app/handlers/gofermart/login"
 	"github.com/vadicheck/gofermart/internal/app/handlers/gofermart/register"
+	"github.com/vadicheck/gofermart/internal/app/handlers/gofermart/uporder"
+	"github.com/vadicheck/gofermart/internal/app/middleware/jwt"
 	"github.com/vadicheck/gofermart/internal/app/repository/gophermart"
+	"github.com/vadicheck/gofermart/internal/app/services/gofermart/order"
 	"github.com/vadicheck/gofermart/internal/app/services/gofermart/user"
 	"github.com/vadicheck/gofermart/pkg/logger"
 )
@@ -52,7 +55,10 @@ func New(
 ) *HTTPServer {
 	r := chi.NewRouter()
 
+	r.Use(jwt.New(logger, cfg.Jwt))
+
 	userService := user.New(storage)
+	orderService := order.New(storage)
 
 	r.Post("/api/user/register", register.New(
 		ctx,
@@ -68,6 +74,13 @@ func New(
 		logger,
 		validator,
 		storage,
+	))
+
+	r.Post("/api/user/orders", uporder.New(
+		ctx,
+		logger,
+		storage,
+		orderService,
 	))
 
 	return &HTTPServer{

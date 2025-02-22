@@ -20,6 +20,7 @@ tasks:
     cmds:
       - go clean -testcache
       - go test -v ./internal/app/handlers/gofermart/register
+      - go test -v ./internal/app/handlers/gofermart/uporder
 
   imports:
     desc: "Run imports"
