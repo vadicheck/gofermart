@@ -95,3 +95,41 @@ func (s *Storage) DeleteAllUsers(ctx context.Context, logger logger.LogClient) e
 
 	return err
 }
+
+func (s *Storage) CreateOrder(
+	ctx context.Context,
+	userID int,
+	orderID, accrual int,
+	status string,
+	logger logger.LogClient,
+) error {
+	const op = "storage.postgres.CreateOrder"
+	const insertSQL = "INSERT INTO public.orders (user_id, order_id, accrual, status) VALUES ($1,$2,$3,$4) RETURNING id"
+
+	stmt, err := s.db.Prepare(insertSQL)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			logger.Error(fmt.Errorf("prepare sql error: %w", err))
+		}
+	}()
+
+	var id int
+
+	err = stmt.QueryRowContext(ctx, userID, orderID, accrual, status).Scan(&id)
+	if err != nil {
+		var pgErr *pgconn.PgError
+
+		if errors.As(err, &pgErr) && pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
+			if pgErr.Code == pgerrcode.UniqueViolation {
+				return storage.ErrLoginAlreadyExists
+			}
+		}
+
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	return nil
+}

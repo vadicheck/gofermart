@@ -1,10 +1,11 @@
-CREATE TYPE order_status AS ENUM ('new', 'completed');
+CREATE TYPE order_status AS ENUM ('NEW', 'PROCESSING', 'INVALID', 'PROCESSED');
 
 CREATE TABLE IF NOT EXISTS orders
 (
     id         SERIAL PRIMARY KEY,
     user_id    INT                      NOT NULL,
     order_id   BIGINT                   NOT NULL UNIQUE,
+    accrual    INT                      NOT NULL DEFAULT 0,
     status     order_status             NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,

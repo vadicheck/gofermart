@@ -115,6 +115,46 @@ func (s *Storage) DeleteAllUsers(ctx context.Context, logger logger.LogClient) e
 	return err
 }
 
+func (s *Storage) GetOrders(ctx context.Context, userID int, logger logger.LogClient) ([]gofermart.Order, error) {
+	const op = "storage.postgres.GetOrders"
+	const selectSQL = "SELECT id, user_id, order_id, accrual, status, created_at, updated_at FROM orders WHERE user_id = $1"
+
+	rows, err := s.db.QueryContext(ctx, selectSQL, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get orders [%s]: %w", op, err)
+	}
+
+	defer func() {
+		if err := rows.Close(); err != nil {
+			logger.Error(fmt.Errorf("rows close error: %w", err))
+		}
+	}()
+
+	var orders []gofermart.Order
+
+	for rows.Next() {
+		var order gofermart.Order
+		if err := rows.Scan(
+			&order.ID,
+			&order.UserID,
+			&order.OrderID,
+			&order.Accrual,
+			&order.Status,
+			&order.CreatedAt,
+			&order.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan row[%s]: %w", op, err)
+		}
+		orders = append(orders, order)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error encountered during rows iteration [%s]: %w", op, err)
+	}
+
+	return orders, nil
+}
+
 func (s *Storage) CreateOrder(
 	ctx context.Context,
 	orderID, userID int,
@@ -153,13 +193,13 @@ func (s *Storage) CreateOrder(
 
 func (s *Storage) GetOrderByID(ctx context.Context, orderID int) (gofermart.Order, error) {
 	const op = "storage.postgres.GetOrderByID"
-	const selectSQL = "SELECT id, user_id, order_id, status, created_at, updated_at FROM orders WHERE order_id = $1"
+	const selectSQL = "SELECT id, user_id, order_id, accrual, status, created_at, updated_at FROM orders WHERE order_id = $1"
 
 	var order gofermart.Order
 
 	row := s.db.QueryRowContext(ctx, selectSQL, orderID)
 
-	err := row.Scan(&order.ID, &order.UserID, &order.OrderID, &order.Status, &order.CreatedAt, &order.UpdatedAt)
+	err := row.Scan(&order.ID, &order.UserID, &order.OrderID, &order.Accrual, &order.Status, &order.CreatedAt, &order.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return order, storage.ErrOrderNotFound
 	} else if err != nil {

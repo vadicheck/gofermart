@@ -1,0 +1,148 @@
+package orders
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/vadicheck/gofermart/internal/app/config"
+	"github.com/vadicheck/gofermart/internal/app/constants"
+	"github.com/vadicheck/gofermart/internal/app/log"
+	"github.com/vadicheck/gofermart/internal/app/storage/postgres"
+	"github.com/vadicheck/gofermart/internal/app/storage/ptest"
+)
+
+func TestNew(t *testing.T) {
+	type request struct {
+		UserID int `json:"user_id"`
+	}
+	type userData struct {
+		ID       int    `json:"id"`
+		Login    string `json:"login"`
+		Password string `json:"password"`
+	}
+	type orderData struct {
+		UserID  int    `json:"user_id"`
+		OrderID int    `json:"order_id"`
+		Accrual int    `json:"accrual"`
+		Status  string `json:"status"`
+	}
+	type responseError struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	}
+	type want struct {
+		contentType   string
+		statusCode    int
+		responseError responseError
+	}
+	users := []userData{
+		{ID: 1, Login: "user1", Password: "passw0rd"},
+		{ID: 2, Login: "user2", Password: "passw0rd"},
+		{ID: 3, Login: "user3", Password: "passw0rd"},
+	}
+	orders := []orderData{
+		{UserID: 1, OrderID: 123456789007, Accrual: 100, Status: "NEW"},
+		{UserID: 3, OrderID: 123456789015, Accrual: 100, Status: "NEW"},
+		{UserID: 3, OrderID: 123456789023, Accrual: 100, Status: "NEW"},
+		{UserID: 3, OrderID: 123456789031, Accrual: 100, Status: "NEW"},
+	}
+	tests := []struct {
+		name    string
+		request request
+		want    want
+	}{
+		{
+			name: "exists orders #1",
+			want: want{
+				contentType:   "application/json",
+				statusCode:    http.StatusOK,
+				responseError: responseError{},
+			},
+			request: request{
+				UserID: 1,
+			},
+		},
+		{
+			name: "no orders #2",
+			want: want{
+				contentType:   "application/json",
+				statusCode:    http.StatusNoContent,
+				responseError: responseError{},
+			},
+			request: request{
+				UserID: 2,
+			},
+		},
+	}
+
+	ctx := context.Background()
+
+	cfg, err := config.NewConfig()
+	if err != nil {
+		panic(fmt.Errorf("config read err %w", err))
+	}
+
+	logger, err := log.New(*cfg)
+	if err != nil {
+		panic(err)
+	}
+
+	storage, err := postgres.New(cfg, logger)
+	if err != nil {
+		panic(err)
+	}
+
+	testStorage, err := ptest.New(cfg, logger)
+	if err != nil {
+		panic(err)
+	}
+
+	err = testStorage.DeleteAllUsers(ctx, logger)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, u := range users {
+		err = testStorage.CreateUser(ctx, u.ID, u.Login, u.Password, logger)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	for _, o := range orders {
+		err = testStorage.CreateOrder(ctx, o.UserID, o.OrderID, o.Accrual, o.Status, logger)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/api/user/orders", nil)
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+
+			handler := New(
+				ctx,
+				logger,
+				storage,
+			)
+
+			req.Header.Set(string(constants.XUserID), strconv.Itoa(tt.request.UserID))
+
+			handler(w, req)
+
+			result := w.Result()
+			defer result.Body.Close()
+
+			assert.Equal(t, tt.want.statusCode, result.StatusCode)
+			assert.Equal(t, tt.want.contentType, result.Header.Get("Content-Type"))
+		})
+	}
+}

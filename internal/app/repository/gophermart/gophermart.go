@@ -11,6 +11,7 @@ type Gophermart interface {
 	CreateUser(ctx context.Context, login, password string, logger logger.LogClient) (int, error)
 	GetUserByLogin(ctx context.Context, login string) (gofermart.User, error)
 
+	GetOrders(ctx context.Context, userID int, logger logger.LogClient) ([]gofermart.Order, error)
 	CreateOrder(ctx context.Context, orderID, userID int, logger logger.LogClient) (int, error)
 	GetOrderByID(ctx context.Context, orderID int) (gofermart.Order, error)
 }

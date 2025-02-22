@@ -25,3 +25,4 @@ vendor/
 .env
 goods.json
 orders.json
+reg_orders.json
