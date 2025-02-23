@@ -315,6 +315,24 @@ func (s *Storage) CreateTransaction(
 	return nil
 }
 
+func (s *Storage) GetTotalWithdrawn(ctx context.Context, userID int) (float32, error) {
+	const op = "storage.postgres.GetTotalWithdrawn"
+	const selectSQL = "SELECT COALESCE(SUM(sum), 0) FROM transactions t WHERE t.user_id = $1"
+
+	var sum float32
+
+	row := s.db.QueryRowContext(ctx, selectSQL, userID)
+
+	err := row.Scan(&sum)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil
+	} else if err != nil {
+		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return sum, nil
+}
+
 func (s *Storage) fillUser(row *sql.Row, op string) (gofermart.User, error) {
 	var user gofermart.User
 

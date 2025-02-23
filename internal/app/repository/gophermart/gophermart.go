@@ -24,4 +24,6 @@ type Gophermart interface {
 	UpdateOrder(ctx context.Context, orderID int, newStatus constants.OrderStatus, accrual int, logger logger.LogClient) error
 
 	CreateTransaction(ctx context.Context, userID int, orderID int, sum int, logger logger.LogClient) error
+
+	GetTotalWithdrawn(ctx context.Context, userID int) (float32, error)
 }

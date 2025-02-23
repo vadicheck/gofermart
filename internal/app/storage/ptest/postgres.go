@@ -134,3 +134,39 @@ func (s *Storage) CreateOrder(
 
 	return nil
 }
+
+func (s *Storage) CreateTransaction(
+	ctx context.Context,
+	userID, orderID, sum int,
+	logger logger.LogClient,
+) error {
+	const op = "storage.postgres.CreateTransaction"
+	const insertSQL = "INSERT INTO public.transactions (user_id, order_id, sum) VALUES ($1,$2,$3) RETURNING id"
+
+	stmt, err := s.db.Prepare(insertSQL)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			logger.Error(fmt.Errorf("prepare sql error: %w", err))
+		}
+	}()
+
+	var id int
+
+	err = stmt.QueryRowContext(ctx, userID, orderID, sum).Scan(&id)
+	if err != nil {
+		var pgErr *pgconn.PgError
+
+		if errors.As(err, &pgErr) && pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
+			if pgErr.Code == pgerrcode.UniqueViolation {
+				return storage.ErrLoginAlreadyExists
+			}
+		}
+
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	return nil
+}

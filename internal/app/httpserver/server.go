@@ -15,6 +15,7 @@ import (
 	"github.com/vadicheck/gofermart/internal/app/handlers/gofermart/orders"
 	"github.com/vadicheck/gofermart/internal/app/handlers/gofermart/register"
 	"github.com/vadicheck/gofermart/internal/app/handlers/gofermart/uporder"
+	"github.com/vadicheck/gofermart/internal/app/handlers/gofermart/user/balance/currentbalance"
 	"github.com/vadicheck/gofermart/internal/app/handlers/gofermart/user/balance/withdraw"
 	"github.com/vadicheck/gofermart/internal/app/middleware/jwt"
 	"github.com/vadicheck/gofermart/internal/app/repository/gophermart"
@@ -90,6 +91,8 @@ func New(
 
 	r.Post("/api/user/orders", uporder.New(ctx, logger, storage, orderService))
 	r.Get("/api/user/orders", orders.New(ctx, logger, storage))
+
+	r.Get("/api/user/balance", currentbalance.New(ctx, logger, storage))
 
 	return &HTTPServer{
 		router:        r,

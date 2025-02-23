@@ -1,7 +1,8 @@
-package orders
+package currentbalance
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -18,8 +19,9 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	type request struct {
-		UserID int `json:"user_id"`
+	type response struct {
+		Current   float32 `json:"current"`
+		Withdrawn float32 `json:"withdrawn"`
 	}
 	type userData struct {
 		ID       int    `json:"id"`
@@ -33,6 +35,11 @@ func TestNew(t *testing.T) {
 		Accrual int    `json:"accrual"`
 		Status  string `json:"status"`
 	}
+	type transactionData struct {
+		UserID  int `json:"user_id"`
+		OrderID int `json:"order_id"`
+		Sum     int `json:"sum"`
+	}
 	type responseError struct {
 		Code    int    `json:"code"`
 		Message string `json:"message"`
@@ -40,6 +47,7 @@ func TestNew(t *testing.T) {
 	type want struct {
 		contentType   string
 		statusCode    int
+		response      response
 		responseError responseError
 	}
 	users := []userData{
@@ -53,31 +61,42 @@ func TestNew(t *testing.T) {
 		{UserID: 3, OrderID: 123456789023, Accrual: 100, Status: "NEW"},
 		{UserID: 3, OrderID: 123456789031, Accrual: 100, Status: "NEW"},
 	}
+	transactions := []transactionData{
+		{UserID: 1, OrderID: 123456789007, Sum: 100},
+		{UserID: 3, OrderID: 123456789015, Sum: 100},
+		{UserID: 3, OrderID: 123456789023, Sum: 100},
+		{UserID: 3, OrderID: 123456789031, Sum: 100},
+	}
 	tests := []struct {
-		name    string
-		request request
-		want    want
+		name     string
+		userID   int
+		response response
+		want     want
 	}{
 		{
-			name: "exists orders #1",
+			name:   "0 withdrawn #1",
+			userID: 2,
 			want: want{
 				contentType:   "application/json",
 				statusCode:    http.StatusOK,
 				responseError: responseError{},
-			},
-			request: request{
-				UserID: 1,
+				response: response{
+					Current:   1000,
+					Withdrawn: 0,
+				},
 			},
 		},
 		{
-			name: "no orders #2",
+			name:   "300 withdrawn #2",
+			userID: 3,
 			want: want{
 				contentType:   "application/json",
-				statusCode:    http.StatusNoContent,
+				statusCode:    http.StatusOK,
 				responseError: responseError{},
-			},
-			request: request{
-				UserID: 2,
+				response: response{
+					Current:   1000,
+					Withdrawn: 300,
+				},
 			},
 		},
 	}
@@ -123,9 +142,16 @@ func TestNew(t *testing.T) {
 		}
 	}
 
+	for _, t := range transactions {
+		err = testStorage.CreateTransaction(ctx, t.UserID, t.OrderID, t.Sum, logger)
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/api/user/orders", http.NoBody)
+			req := httptest.NewRequest(http.MethodGet, "/api/user/balance", http.NoBody)
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 
@@ -135,7 +161,7 @@ func TestNew(t *testing.T) {
 				storage,
 			)
 
-			req.Header.Set(string(constants.XUserID), strconv.Itoa(tt.request.UserID))
+			req.Header.Set(string(constants.XUserID), strconv.Itoa(tt.userID))
 
 			handler(w, req)
 
@@ -144,6 +170,17 @@ func TestNew(t *testing.T) {
 
 			assert.Equal(t, tt.want.statusCode, result.StatusCode)
 			assert.Equal(t, tt.want.contentType, result.Header.Get("Content-Type"))
+
+			if tt.want.statusCode == http.StatusOK {
+				var resp response
+
+				dec := json.NewDecoder(result.Body)
+				err = dec.Decode(&resp)
+
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want.response.Current, resp.Current)
+				assert.Equal(t, tt.want.response.Withdrawn, resp.Withdrawn)
+			}
 		})
 	}
 }
