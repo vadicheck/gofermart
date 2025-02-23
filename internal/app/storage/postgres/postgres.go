@@ -21,7 +21,8 @@ import (
 )
 
 type Storage struct {
-	db *sql.DB
+	logger logger.LogClient
+	db     *sql.DB
 }
 
 func New(cfg *config.Config, logger logger.LogClient) (*Storage, error) {
@@ -35,7 +36,10 @@ func New(cfg *config.Config, logger logger.LogClient) (*Storage, error) {
 		return nil, fmt.Errorf("unable to connect to database: %v", err)
 	}
 
-	return &Storage{db: db}, nil
+	return &Storage{
+		db:     db,
+		logger: logger,
+	}, nil
 }
 
 func (s *Storage) BeginTransaction(ctx context.Context) (*sql.Tx, error) {
@@ -313,6 +317,44 @@ func (s *Storage) CreateTransaction(
 	}
 
 	return nil
+}
+
+func (s *Storage) GetTransactionsByUserID(ctx context.Context, userID int) ([]gofermart.Transaction, error) {
+	const op = "storage.postgres.GetTransactionsByUserID"
+	const selectSQL = "SELECT id, user_id, order_id, sum, created_at FROM transactions WHERE user_id = $1 ORDER BY created_at DESC"
+
+	rows, err := s.db.QueryContext(ctx, selectSQL, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get transactions [%s]: %w", op, err)
+	}
+
+	defer func() {
+		if err := rows.Close(); err != nil {
+			s.logger.Error(fmt.Errorf("rows close error: %w", err))
+		}
+	}()
+
+	var transactions []gofermart.Transaction
+
+	for rows.Next() {
+		var transaction gofermart.Transaction
+		if err := rows.Scan(
+			&transaction.ID,
+			&transaction.UserID,
+			&transaction.OrderID,
+			&transaction.Sum,
+			&transaction.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan row[%s]: %w", op, err)
+		}
+		transactions = append(transactions, transaction)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error encountered during rows iteration [%s]: %w", op, err)
+	}
+
+	return transactions, nil
 }
 
 func (s *Storage) GetTotalWithdrawn(ctx context.Context, userID int) (float32, error) {
