@@ -10,10 +10,10 @@ import (
 	"github.com/go-playground/validator/v10"
 
 	"github.com/vadicheck/gofermart/internal/app/config"
-	"github.com/vadicheck/gofermart/internal/app/httpserver/models/gofermart"
 	"github.com/vadicheck/gofermart/internal/app/httpserver/response"
+	resmodels "github.com/vadicheck/gofermart/internal/app/models/gofermart/response"
 	"github.com/vadicheck/gofermart/internal/app/repository/gophermart"
-	storageerr "github.com/vadicheck/gofermart/internal/app/storage"
+	appstorage "github.com/vadicheck/gofermart/internal/app/storage"
 	"github.com/vadicheck/gofermart/pkg/logger"
 	"github.com/vadicheck/gofermart/pkg/password"
 	"github.com/vadicheck/gofermart/pkg/secure/jwt"
@@ -36,36 +36,36 @@ func New(
 
 		dec := json.NewDecoder(r.Body)
 		if decodeErr := dec.Decode(&request); decodeErr != nil {
-			response.ResponseError(w, gofermart.NewError(http.StatusBadRequest, "Invalid JSON body"), logger)
+			response.Error(w, resmodels.NewError(http.StatusBadRequest, "Invalid JSON body"), logger)
 			logger.Error(decodeErr)
 			return
 		}
 
 		err := validator.Struct(request)
 		if err != nil {
-			response.ResponseError(w, gofermart.NewError(http.StatusBadRequest, err.Error()), logger)
+			response.Error(w, resmodels.NewError(http.StatusBadRequest, err.Error()), logger)
 			return
 		}
 
 		user, err := storage.GetUserByLogin(ctx, request.Login)
 		if err != nil {
-			if errors.Is(err, storageerr.ErrUserNotFound) {
-				response.ResponseError(w, gofermart.NewError(http.StatusNotFound, "user not found"), logger)
+			if errors.Is(err, appstorage.ErrUserNotFound) {
+				response.Error(w, resmodels.NewError(http.StatusNotFound, "User not found"), logger)
 			} else {
-				response.ResponseError(w, gofermart.NewError(http.StatusInternalServerError, "can't find user"), logger)
+				response.Error(w, resmodels.NewError(http.StatusInternalServerError, "Can't find user"), logger)
 				logger.Error(fmt.Errorf("can't find user: %w", err))
 			}
 			return
 		}
 
 		if !password.CheckPasswordHash(request.Password, user.Password) {
-			response.ResponseError(w, gofermart.NewError(http.StatusUnauthorized, "username or password is incorrect"), logger)
+			response.Error(w, resmodels.NewError(http.StatusUnauthorized, "Username or password is incorrect"), logger)
 			return
 		}
 
 		token, err := jwt.BuildJWTString(jwtConfig.JwtSecret, jwtConfig.JwtTokenExpire, user.ID)
 		if err != nil {
-			response.ResponseError(w, gofermart.NewError(http.StatusInternalServerError, "can't build jwt token"), logger)
+			response.Error(w, resmodels.NewError(http.StatusInternalServerError, "Can't build jwt token"), logger)
 			logger.Error(fmt.Errorf("can't build jwt token: %w", err))
 			return
 		}

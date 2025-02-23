@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/vadicheck/gofermart/internal/app/httpserver/models/gofermart"
+	"github.com/vadicheck/gofermart/internal/app/models/gofermart/response"
 	"github.com/vadicheck/gofermart/pkg/logger"
 )
 
@@ -20,9 +20,7 @@ func RespondWithJSON(w http.ResponseWriter, status int, payload interface{}) err
 	return nil
 }
 
-func ResponseError(w http.ResponseWriter, err *gofermart.ResponseError, logger logger.LogClient) {
-	logger.Error(fmt.Errorf("error: %s", err.Message))
-
+func Error(w http.ResponseWriter, err *response.Error, logger logger.LogClient) {
 	if responseErr := RespondWithJSON(w, err.Code, err); responseErr != nil {
 		logger.Error(fmt.Errorf("error responding with error: %w", responseErr))
 	}

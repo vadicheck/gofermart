@@ -10,8 +10,8 @@ import (
 
 	"github.com/vadicheck/gofermart/internal/app/config"
 	"github.com/vadicheck/gofermart/internal/app/constants"
-	"github.com/vadicheck/gofermart/internal/app/httpserver/models/gofermart"
 	"github.com/vadicheck/gofermart/internal/app/httpserver/response"
+	resmodels "github.com/vadicheck/gofermart/internal/app/models/gofermart/response"
 	"github.com/vadicheck/gofermart/pkg/logger"
 	securejwt "github.com/vadicheck/gofermart/pkg/secure/jwt"
 )
@@ -37,25 +37,25 @@ func New(logger logger.LogClient, jwtConfig config.JwtConfig) func(next http.Han
 			}
 
 			if jwtToken == "" {
-				response.ResponseError(w, gofermart.NewError(http.StatusUnauthorized, "Unauthorized"), logger)
+				response.Error(w, resmodels.NewError(http.StatusUnauthorized, "Unauthorized"), logger)
 				return
 			}
 
 			decodedJwtToken, err := securejwt.DecodeJwtToken(jwtToken, jwtConfig.JwtSecret)
 			if err != nil {
 				if errors.Is(err, jwt.ErrTokenExpired) {
-					response.ResponseError(w, gofermart.NewError(http.StatusUnauthorized, "Unauthorized"), logger)
+					response.Error(w, resmodels.NewError(http.StatusUnauthorized, "Unauthorized"), logger)
 					return
 				}
 
 				logger.Error(fmt.Errorf("can't decode jwt token: %w", err))
-				response.ResponseError(w, gofermart.NewError(http.StatusInternalServerError, "Auth error"), logger)
+				response.Error(w, resmodels.NewError(http.StatusInternalServerError, "Auth error"), logger)
 				return
 			}
 
 			if decodedJwtToken.UserID == 0 {
 				logger.Error(fmt.Errorf("user_id is absent in jwt"))
-				response.ResponseError(w, gofermart.NewError(http.StatusUnauthorized, "Unauthorized"), logger)
+				response.Error(w, resmodels.NewError(http.StatusUnauthorized, "Unauthorized"), logger)
 				return
 			}
 

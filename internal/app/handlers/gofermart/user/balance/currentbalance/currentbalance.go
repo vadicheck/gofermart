@@ -8,11 +8,10 @@ import (
 	"strconv"
 
 	"github.com/vadicheck/gofermart/internal/app/constants"
-	"github.com/vadicheck/gofermart/internal/app/httpserver/models/gofermart"
-	"github.com/vadicheck/gofermart/internal/app/httpserver/models/gofermart/users"
 	"github.com/vadicheck/gofermart/internal/app/httpserver/response"
 	models "github.com/vadicheck/gofermart/internal/app/models/gofermart"
-	storage2 "github.com/vadicheck/gofermart/internal/app/storage"
+	resmodels "github.com/vadicheck/gofermart/internal/app/models/gofermart/response"
+	appstorage "github.com/vadicheck/gofermart/internal/app/storage"
 	"github.com/vadicheck/gofermart/pkg/logger"
 )
 
@@ -29,16 +28,16 @@ func New(
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, err := strconv.Atoi(r.Header.Get(string(constants.XUserID)))
 		if err != nil {
-			response.ResponseError(w, gofermart.NewError(http.StatusUnauthorized, "Unauthorized"), logger)
+			response.Error(w, resmodels.NewError(http.StatusUnauthorized, "Unauthorized"), logger)
 			return
 		}
 
 		user, err := storage.GetUserByID(ctx, userID)
 		if err != nil {
-			if errors.Is(err, storage2.ErrUserNotFound) {
-				response.ResponseError(w, gofermart.NewError(http.StatusNotFound, "user not found"), logger)
+			if errors.Is(err, appstorage.ErrUserNotFound) {
+				response.Error(w, resmodels.NewError(http.StatusNotFound, "User not found"), logger)
 			} else {
-				response.ResponseError(w, gofermart.NewError(http.StatusInternalServerError, "can't find user"), logger)
+				response.Error(w, resmodels.NewError(http.StatusInternalServerError, "Can't find user"), logger)
 			}
 			return
 		}
@@ -46,12 +45,12 @@ func New(
 		withdrawn, err := storage.GetTotalWithdrawn(ctx, userID)
 		if err != nil {
 			logger.Error(fmt.Errorf("failed to get total withdrawn. userID: %d, err: %w", userID, err))
-			response.ResponseError(w, gofermart.NewError(http.StatusInternalServerError, "Failed to get total withdrawn"), logger)
+			response.Error(w, resmodels.NewError(http.StatusInternalServerError, "Failed to get total withdrawn"), logger)
 			return
 		}
 
-		responseBalance := users.BalanceResponse{
-			Current:   float32(user.Balance),
+		responseBalance := resmodels.BalanceResponse{
+			Current:   user.Balance,
 			Withdrawn: withdrawn,
 		}
 

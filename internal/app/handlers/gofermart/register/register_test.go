@@ -14,7 +14,6 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/vadicheck/gofermart/internal/app/config"
 	"github.com/vadicheck/gofermart/internal/app/log"
-	"github.com/vadicheck/gofermart/internal/app/services/gofermart/user"
 	"github.com/vadicheck/gofermart/internal/app/storage/postgres"
 	"github.com/vadicheck/gofermart/internal/app/storage/ptest"
 )
@@ -46,7 +45,7 @@ func TestNew(t *testing.T) {
 			name: "register test #1",
 			want: want{
 				contentType: "application/json",
-				statusCode:  http.StatusCreated,
+				statusCode:  http.StatusOK,
 				response: response{
 					Result: "",
 				},
@@ -104,8 +103,6 @@ func TestNew(t *testing.T) {
 		panic(err)
 	}
 
-	userService := user.New(storage)
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			jsonData, err := json.Marshal(tt.request)
@@ -123,8 +120,8 @@ func TestNew(t *testing.T) {
 				ctx,
 				cfg.Jwt,
 				logger,
+				storage,
 				*validator.New(),
-				userService,
 			)
 
 			handler(w, req)

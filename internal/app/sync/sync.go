@@ -29,11 +29,11 @@ type orderService interface {
 	BeginTransaction(ctx context.Context) (*sql.Tx, error)
 
 	GetUserByID(ctx context.Context, userID int) (gofermart.User, error)
-	ChangeUserBalance(ctx context.Context, userID int, balance int, logger logger.LogClient) error
+	ChangeUserBalance(ctx context.Context, userID int, balance float32) error
 
-	GetOrderByID(ctx context.Context, orderID int) (gofermart.Order, error)
-	GetOrdersIdsByStatus(ctx context.Context, statuses []constants.OrderStatus, logger logger.LogClient) ([]int, error)
-	UpdateOrder(ctx context.Context, orderID int, newStatus constants.OrderStatus, accrual int, logger logger.LogClient) error
+	GetOrderByID(ctx context.Context, orderID string) (gofermart.Order, error)
+	GetOrdersIdsByStatus(ctx context.Context, statuses []constants.OrderStatus) ([]string, error)
+	UpdateOrder(ctx context.Context, orderID string, newStatus constants.OrderStatus, accrual float32) error
 }
 
 func New(
@@ -48,11 +48,7 @@ func New(
 	}
 }
 
-func (sa *App) Run(
-	ctx context.Context,
-	orderService orderService,
-	wg *sync.WaitGroup,
-) error {
+func (sa *App) Run(ctx context.Context, wg *sync.WaitGroup) error {
 	sa.logger.Info(fmt.Sprintf("sync app starting: %s", sa.accrualAddress))
 
 	transport := http.NewHTTPClient(
@@ -67,7 +63,7 @@ func (sa *App) Run(
 
 	wg.Add(1)
 	go func() {
-		jobs := make(chan int, maxQueueLength)
+		jobs := make(chan string, maxQueueLength)
 		results := make(chan int, maxQueueLength)
 
 		defer close(jobs)
@@ -85,11 +81,11 @@ func (sa *App) Run(
 		for {
 			select {
 			case <-ctx.Done():
-				fmt.Println("Exit sync")
+				sa.logger.Info("Exit sync")
 				wg.Done()
 				return
 			default:
-				orderIds, err := orderService.GetOrdersIdsByStatus(ctx, statuses, sa.logger)
+				orderIds, err := sa.orderService.GetOrdersIdsByStatus(ctx, statuses)
 				if err != nil {
 					sa.logger.Error(fmt.Errorf("failed to get order ids by status. err: %w", err))
 				} else {
@@ -109,7 +105,7 @@ func (sa *App) handleOrder(
 	ctx context.Context,
 	accrualService accrualservice.Service,
 	m *sync.Mutex,
-	jobs <-chan int,
+	jobs <-chan string,
 ) {
 	for orderID := range jobs {
 		order, err := sa.orderService.GetOrderByID(ctx, orderID)
@@ -146,7 +142,7 @@ func (sa *App) handleOrder(
 
 func (sa *App) apply(
 	ctx context.Context,
-	orderID int,
+	orderID string,
 	userID int,
 	orderResponse *accrualservice.GetOrderResponse,
 ) error {
@@ -157,17 +153,19 @@ func (sa *App) apply(
 
 	defer func() {
 		if err = tx.Rollback(); err != nil {
-			sa.logger.Error(fmt.Errorf("transaction rollback error: %w", err))
+			if !errors.Is(err, sql.ErrTxDone) {
+				sa.logger.Error(fmt.Errorf("transaction rollback error: %w", err))
+			}
 		}
 	}()
 
 	if constants.OrderStatus(orderResponse.Status) == constants.StatusProcessed {
-		user, err := sa.orderService.GetUserByID(ctx, userID)
-		if err != nil {
+		user, getErr := sa.orderService.GetUserByID(ctx, userID)
+		if getErr != nil {
 			return errors.New("user not found")
 		}
 
-		err = sa.orderService.ChangeUserBalance(ctx, user.ID, user.Balance+orderResponse.Accrual, sa.logger)
+		err = sa.orderService.ChangeUserBalance(ctx, user.ID, user.Balance+orderResponse.Accrual)
 		if err != nil {
 			return fmt.Errorf("failed to change user balance. err: %w", err)
 		}
@@ -178,7 +176,6 @@ func (sa *App) apply(
 		orderID,
 		constants.OrderStatus(orderResponse.Status),
 		orderResponse.Accrual,
-		sa.logger,
 	)
 
 	if err != nil {

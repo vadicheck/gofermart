@@ -8,9 +8,8 @@ import (
 	"time"
 
 	"github.com/vadicheck/gofermart/internal/app/constants"
-	"github.com/vadicheck/gofermart/internal/app/httpserver/models/gofermart"
-	resp "github.com/vadicheck/gofermart/internal/app/httpserver/models/gofermart/orders"
 	"github.com/vadicheck/gofermart/internal/app/httpserver/response"
+	resmodels "github.com/vadicheck/gofermart/internal/app/models/gofermart/response"
 	"github.com/vadicheck/gofermart/internal/app/repository/gophermart"
 	"github.com/vadicheck/gofermart/pkg/logger"
 )
@@ -23,28 +22,28 @@ func New(
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, err := strconv.Atoi(r.Header.Get(string(constants.XUserID)))
 		if err != nil {
-			response.ResponseError(w, gofermart.NewError(http.StatusUnauthorized, "Unauthorized"), logger)
+			response.Error(w, resmodels.NewError(http.StatusUnauthorized, "Unauthorized"), logger)
 			return
 		}
 
-		orders, err := storage.GetOrders(ctx, userID, logger)
+		orders, err := storage.GetOrders(ctx, userID)
 
 		if err != nil {
 			logger.Error(fmt.Errorf("failed to get orders. userID: %d, err: %w", userID, err))
-			response.ResponseError(w, gofermart.NewError(http.StatusInternalServerError, "Failed to get orders"), logger)
+			response.Error(w, resmodels.NewError(http.StatusInternalServerError, "Failed to get orders"), logger)
 			return
 		}
 
 		if len(orders) == 0 {
-			response.ResponseError(w, gofermart.NewError(http.StatusNoContent, "No orders found"), logger)
+			response.Error(w, resmodels.NewError(http.StatusNoContent, "No orders found"), logger)
 			return
 		}
 
-		responseOrders := make([]resp.OrderResponse, 0)
+		responseOrders := make([]resmodels.OrderResponse, 0)
 
 		for _, order := range orders {
-			responseOrders = append(responseOrders, resp.OrderResponse{
-				Number:     strconv.FormatInt(order.OrderID, 10),
+			responseOrders = append(responseOrders, resmodels.OrderResponse{
+				Number:     order.OrderID,
 				Status:     order.Status,
 				Accrual:    order.Accrual,
 				UploadedAt: order.CreatedAt.Format(time.RFC3339),

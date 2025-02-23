@@ -44,7 +44,7 @@ func main() {
 		*validator.New(),
 	)
 
-	syncApp := appsync.New(cfg.AccrualAddress, storage, logger)
+	syncApp := appsync.New(cfg.AccrualSystemAddress, storage, logger)
 
 	httpServer, err := httpApp.Run(logger)
 	if err != nil {
@@ -53,7 +53,7 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	err = syncApp.Run(ctx, storage, &wg)
+	err = syncApp.Run(ctx, &wg)
 	if err != nil {
 		panic(err)
 	}

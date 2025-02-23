@@ -12,7 +12,7 @@ import (
 	"github.com/vadicheck/gofermart/pkg/logger"
 )
 
-const GetOrderURL = "/api/orders/%d"
+const GetOrderURL = "/api/orders/%s"
 
 type HTTPClient interface {
 	Do(req *http.Request) (*http.Response, error)
@@ -25,7 +25,7 @@ type accrualsServiceAPI struct {
 }
 
 type Service interface {
-	GetOrder(ctx context.Context, orderNumber int) (*GetOrderResponse, error)
+	GetOrder(ctx context.Context, orderID string) (*GetOrderResponse, error)
 }
 
 func New(
@@ -40,9 +40,8 @@ func New(
 	}
 }
 
-func (f *accrualsServiceAPI) GetOrder(ctx context.Context, orderNumber int) (*GetOrderResponse, error) {
-	path := fmt.Sprintf(GetOrderURL, orderNumber)
-	buf, err := f.doGet(ctx, path)
+func (f *accrualsServiceAPI) GetOrder(ctx context.Context, orderID string) (*GetOrderResponse, error) {
+	buf, err := f.doGet(ctx, fmt.Sprintf(GetOrderURL, orderID))
 	if err != nil {
 		return nil, fmt.Errorf("failed to do get: %w", err)
 	}
@@ -78,7 +77,7 @@ func (f *accrualsServiceAPI) doGet(ctx context.Context, path string) ([]byte, er
 	}
 
 	if respRaw.StatusCode == http.StatusNoContent {
-		f.logger.InfoCtx(ctx, "no content response", "url", url)
+		f.logger.Info("no content response", "url", url)
 		return nil, nil
 	}
 

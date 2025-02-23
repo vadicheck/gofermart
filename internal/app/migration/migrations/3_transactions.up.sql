@@ -2,8 +2,8 @@ CREATE TABLE IF NOT EXISTS transactions
 (
     id         SERIAL PRIMARY KEY,
     user_id    INT                      NOT NULL,
-    order_id   BIGINT                   NOT NULL UNIQUE,
-    sum        INT                      NOT NULL,
+    order_id   VARCHAR(255)             NOT NULL UNIQUE,
+    sum        NUMERIC(10, 2)                    DEFAULT 0 NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_user
         FOREIGN KEY (user_id)

@@ -3,6 +3,7 @@ package balance
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/vadicheck/gofermart/internal/app/models/gofermart"
@@ -10,29 +11,33 @@ import (
 	"github.com/vadicheck/gofermart/pkg/logger"
 )
 
-type Storage interface {
+type withdrawStorage interface {
 	BeginTransaction(ctx context.Context) (*sql.Tx, error)
-	ChangeUserBalance(ctx context.Context, userID int, balance int, logger logger.LogClient) error
-	CreateTransaction(ctx context.Context, userID int, orderID int, sum int, logger logger.LogClient) error
+	ChangeUserBalance(ctx context.Context, userID int, balance float32) error
+	CreateTransaction(ctx context.Context, userID int, orderID string, sum float32) error
 }
 
-type Service struct {
-	storage Storage
+type Service interface {
+	Withdraw(ctx context.Context, user gofermart.User, orderID string, sum float32) error
+}
+
+type service struct {
+	storage withdrawStorage
 	logger  logger.LogClient
 }
 
-func New(storage Storage, logger logger.LogClient) *Service {
-	return &Service{
+func New(storage withdrawStorage, logger logger.LogClient) Service {
+	return &service{
 		storage: storage,
 		logger:  logger,
 	}
 }
 
-func (s *Service) Withdraw(
+func (s *service) Withdraw(
 	ctx context.Context,
 	user gofermart.User,
-	orderID int,
-	sum int,
+	orderID string,
+	sum float32,
 ) error {
 	if user.Balance < sum {
 		return services.ErrInsufficientBalance
@@ -45,16 +50,18 @@ func (s *Service) Withdraw(
 
 	defer func() {
 		if err = tx.Rollback(); err != nil {
-			s.logger.Error(fmt.Errorf("transaction rollback error: %w", err))
+			if !errors.Is(err, sql.ErrTxDone) {
+				s.logger.Error(fmt.Errorf("transaction rollback error: %w", err))
+			}
 		}
 	}()
 
-	err = s.storage.CreateTransaction(ctx, user.ID, orderID, sum, s.logger)
+	err = s.storage.CreateTransaction(ctx, user.ID, orderID, sum)
 	if err != nil {
 		return err
 	}
 
-	err = s.storage.ChangeUserBalance(ctx, user.ID, user.Balance-sum, s.logger)
+	err = s.storage.ChangeUserBalance(ctx, user.ID, user.Balance-sum)
 	if err != nil {
 		return err
 	}

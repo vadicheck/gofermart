@@ -14,7 +14,6 @@ import (
 	"github.com/vadicheck/gofermart/internal/app/config"
 	"github.com/vadicheck/gofermart/internal/app/constants"
 	"github.com/vadicheck/gofermart/internal/app/log"
-	"github.com/vadicheck/gofermart/internal/app/services/gofermart/order"
 	"github.com/vadicheck/gofermart/internal/app/storage/postgres"
 	"github.com/vadicheck/gofermart/internal/app/storage/ptest"
 )
@@ -25,10 +24,10 @@ func TestNew(t *testing.T) {
 		Content string `json:"content"`
 	}
 	type userData struct {
-		ID       int    `json:"id"`
-		Login    string `json:"login"`
-		Password string `json:"password"`
-		Balance  int    `json:"balance"`
+		ID       int     `json:"id"`
+		Login    string  `json:"login"`
+		Password string  `json:"password"`
+		Balance  float32 `json:"balance"`
 	}
 	type responseError struct {
 		Code    int    `json:"code"`
@@ -127,13 +126,11 @@ func TestNew(t *testing.T) {
 	}
 
 	for _, u := range users {
-		err = testStorage.CreateUser(ctx, u.ID, u.Login, u.Password, u.Balance, logger)
+		err = testStorage.CreateUser(ctx, u.ID, u.Login, u.Password, u.Balance)
 		if err != nil {
 			panic(err)
 		}
 	}
-
-	orderService := order.New(storage)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -145,7 +142,6 @@ func TestNew(t *testing.T) {
 				ctx,
 				logger,
 				storage,
-				orderService,
 			)
 
 			req.Header.Set(string(constants.XUserID), strconv.Itoa(tt.request.UserID))

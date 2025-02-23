@@ -24,21 +24,21 @@ func TestNew(t *testing.T) {
 		Withdrawn float32 `json:"withdrawn"`
 	}
 	type userData struct {
-		ID       int    `json:"id"`
-		Login    string `json:"login"`
-		Password string `json:"password"`
-		Balance  int    `json:"balance"`
+		ID       int     `json:"id"`
+		Login    string  `json:"login"`
+		Password string  `json:"password"`
+		Balance  float32 `json:"balance"`
 	}
 	type orderData struct {
-		UserID  int    `json:"user_id"`
-		OrderID int    `json:"order_id"`
-		Accrual int    `json:"accrual"`
-		Status  string `json:"status"`
+		UserID  int     `json:"user_id"`
+		OrderID string  `json:"order_id"`
+		Accrual float32 `json:"accrual"`
+		Status  string  `json:"status"`
 	}
 	type transactionData struct {
-		UserID  int `json:"user_id"`
-		OrderID int `json:"order_id"`
-		Sum     int `json:"sum"`
+		UserID  int     `json:"user_id"`
+		OrderID string  `json:"order_id"`
+		Sum     float32 `json:"sum"`
 	}
 	type responseError struct {
 		Code    int    `json:"code"`
@@ -56,16 +56,16 @@ func TestNew(t *testing.T) {
 		{ID: 3, Login: "user3", Password: "passw0rd", Balance: 1000},
 	}
 	orders := []orderData{
-		{UserID: 1, OrderID: 123456789007, Accrual: 100, Status: "NEW"},
-		{UserID: 3, OrderID: 123456789015, Accrual: 100, Status: "NEW"},
-		{UserID: 3, OrderID: 123456789023, Accrual: 100, Status: "NEW"},
-		{UserID: 3, OrderID: 123456789031, Accrual: 100, Status: "NEW"},
+		{UserID: 1, OrderID: "123456789007", Accrual: 100, Status: "NEW"},
+		{UserID: 3, OrderID: "123456789015", Accrual: 100, Status: "NEW"},
+		{UserID: 3, OrderID: "123456789023", Accrual: 100, Status: "NEW"},
+		{UserID: 3, OrderID: "123456789031", Accrual: 100, Status: "NEW"},
 	}
 	transactions := []transactionData{
-		{UserID: 1, OrderID: 123456789007, Sum: 100},
-		{UserID: 3, OrderID: 123456789015, Sum: 100},
-		{UserID: 3, OrderID: 123456789023, Sum: 100},
-		{UserID: 3, OrderID: 123456789031, Sum: 100},
+		{UserID: 1, OrderID: "123456789007", Sum: 100},
+		{UserID: 3, OrderID: "123456789015", Sum: 100},
+		{UserID: 3, OrderID: "123456789023", Sum: 100},
+		{UserID: 3, OrderID: "123456789031", Sum: 100},
 	}
 	tests := []struct {
 		name     string
@@ -129,21 +129,21 @@ func TestNew(t *testing.T) {
 	}
 
 	for _, u := range users {
-		err = testStorage.CreateUser(ctx, u.ID, u.Login, u.Password, u.Balance, logger)
+		err = testStorage.CreateUser(ctx, u.ID, u.Login, u.Password, u.Balance)
 		if err != nil {
 			panic(err)
 		}
 	}
 
 	for _, o := range orders {
-		err = testStorage.CreateOrder(ctx, o.UserID, o.OrderID, o.Accrual, o.Status, logger)
+		err = testStorage.CreateOrder(ctx, o.UserID, o.OrderID, o.Accrual, o.Status)
 		if err != nil {
 			panic(err)
 		}
 	}
 
 	for _, t := range transactions {
-		err = testStorage.CreateTransaction(ctx, t.UserID, t.OrderID, t.Sum, logger)
+		err = testStorage.CreateTransaction(ctx, t.UserID, t.OrderID, t.Sum)
 		if err != nil {
 			panic(err)
 		}

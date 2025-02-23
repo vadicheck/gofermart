@@ -22,16 +22,16 @@ func TestNew(t *testing.T) {
 		UserID int `json:"user_id"`
 	}
 	type userData struct {
-		ID       int    `json:"id"`
-		Login    string `json:"login"`
-		Password string `json:"password"`
-		Balance  int    `json:"balance"`
+		ID       int     `json:"id"`
+		Login    string  `json:"login"`
+		Password string  `json:"password"`
+		Balance  float32 `json:"balance"`
 	}
 	type orderData struct {
-		UserID  int    `json:"user_id"`
-		OrderID int    `json:"order_id"`
-		Accrual int    `json:"accrual"`
-		Status  string `json:"status"`
+		UserID  int     `json:"user_id"`
+		OrderID string  `json:"order_id"`
+		Accrual float32 `json:"accrual"`
+		Status  string  `json:"status"`
 	}
 	type responseError struct {
 		Code    int    `json:"code"`
@@ -48,10 +48,10 @@ func TestNew(t *testing.T) {
 		{ID: 3, Login: "user3", Password: "passw0rd", Balance: 1000},
 	}
 	orders := []orderData{
-		{UserID: 1, OrderID: 123456789007, Accrual: 100, Status: "NEW"},
-		{UserID: 3, OrderID: 123456789015, Accrual: 100, Status: "NEW"},
-		{UserID: 3, OrderID: 123456789023, Accrual: 100, Status: "NEW"},
-		{UserID: 3, OrderID: 123456789031, Accrual: 100, Status: "NEW"},
+		{UserID: 1, OrderID: "123456789007", Accrual: 100, Status: "NEW"},
+		{UserID: 3, OrderID: "123456789015", Accrual: 100, Status: "NEW"},
+		{UserID: 3, OrderID: "123456789023", Accrual: 100, Status: "NEW"},
+		{UserID: 3, OrderID: "123456789031", Accrual: 100, Status: "NEW"},
 	}
 	tests := []struct {
 		name    string
@@ -110,14 +110,14 @@ func TestNew(t *testing.T) {
 	}
 
 	for _, u := range users {
-		err = testStorage.CreateUser(ctx, u.ID, u.Login, u.Password, u.Balance, logger)
+		err = testStorage.CreateUser(ctx, u.ID, u.Login, u.Password, u.Balance)
 		if err != nil {
 			panic(err)
 		}
 	}
 
 	for _, o := range orders {
-		err = testStorage.CreateOrder(ctx, o.UserID, o.OrderID, o.Accrual, o.Status, logger)
+		err = testStorage.CreateOrder(ctx, o.UserID, o.OrderID, o.Accrual, o.Status)
 		if err != nil {
 			panic(err)
 		}

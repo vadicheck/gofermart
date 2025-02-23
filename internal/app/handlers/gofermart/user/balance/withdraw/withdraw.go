@@ -11,17 +11,17 @@ import (
 	"github.com/go-playground/validator/v10"
 
 	"github.com/vadicheck/gofermart/internal/app/constants"
-	"github.com/vadicheck/gofermart/internal/app/httpserver/models/gofermart"
 	"github.com/vadicheck/gofermart/internal/app/httpserver/response"
 	models "github.com/vadicheck/gofermart/internal/app/models/gofermart"
+	resmodels "github.com/vadicheck/gofermart/internal/app/models/gofermart/response"
 	"github.com/vadicheck/gofermart/internal/app/services"
-	stor "github.com/vadicheck/gofermart/internal/app/storage"
+	appstorage "github.com/vadicheck/gofermart/internal/app/storage"
 	"github.com/vadicheck/gofermart/pkg/logger"
 	"github.com/vadicheck/gofermart/pkg/luhn"
 )
 
 type balanceService interface {
-	Withdraw(ctx context.Context, user models.User, orderID int, sum int) error
+	Withdraw(ctx context.Context, user models.User, orderID string, sum float32) error
 }
 
 type storage interface {
@@ -29,8 +29,8 @@ type storage interface {
 }
 
 type Request struct {
-	OrderID string `json:"order" validate:"required"`
-	Sum     int    `json:"sum" validate:"required"`
+	OrderID string  `json:"order" validate:"required"`
+	Sum     float32 `json:"sum" validate:"required"`
 }
 
 func New(
@@ -45,48 +45,48 @@ func New(
 
 		dec := json.NewDecoder(r.Body)
 		if decodeErr := dec.Decode(&request); decodeErr != nil {
-			response.ResponseError(w, gofermart.NewError(http.StatusBadRequest, "invalid JSON body"), logger)
+			response.Error(w, resmodels.NewError(http.StatusBadRequest, "invalid JSON body"), logger)
 			logger.Error(decodeErr)
 			return
 		}
 
 		err := validator.Struct(request)
 		if err != nil {
-			response.ResponseError(w, gofermart.NewError(http.StatusBadRequest, err.Error()), logger)
+			response.Error(w, resmodels.NewError(http.StatusBadRequest, err.Error()), logger)
 			return
 		}
 
-		orderID, err := strconv.Atoi(request.OrderID)
+		luhOrderID, err := strconv.Atoi(request.OrderID)
 		if err != nil {
-			response.ResponseError(w, gofermart.NewError(http.StatusBadRequest, "invalid order number"), logger)
+			response.Error(w, resmodels.NewError(http.StatusBadRequest, "invalid order number"), logger)
 			return
 		}
 
-		if !luhn.Valid(orderID) {
-			response.ResponseError(w, gofermart.NewError(http.StatusUnprocessableEntity, "invalid order number (luhn)"), logger)
+		if !luhn.Valid(luhOrderID) {
+			response.Error(w, resmodels.NewError(http.StatusUnprocessableEntity, "invalid order number (luhn)"), logger)
 			return
 		}
 
 		userID, err := strconv.Atoi(r.Header.Get(string(constants.XUserID)))
 		if err != nil {
-			response.ResponseError(w, gofermart.NewError(http.StatusUnauthorized, "unauthorized"), logger)
+			response.Error(w, resmodels.NewError(http.StatusUnauthorized, "unauthorized"), logger)
 			return
 		}
 
 		user, err := storage.GetUserByID(ctx, userID)
 		if err != nil {
-			response.ResponseError(w, gofermart.NewError(http.StatusBadRequest, "user not found"), logger)
+			response.Error(w, resmodels.NewError(http.StatusBadRequest, "user not found"), logger)
 			return
 		}
 
-		err = balanceService.Withdraw(ctx, user, orderID, request.Sum)
+		err = balanceService.Withdraw(ctx, user, request.OrderID, request.Sum)
 		if err != nil {
 			if errors.Is(err, services.ErrInsufficientBalance) {
-				response.ResponseError(w, gofermart.NewError(http.StatusPaymentRequired, "insufficient funds"), logger)
-			} else if errors.Is(err, stor.ErrOrderTransactionAlreadyExists) {
-				response.ResponseError(w, gofermart.NewError(http.StatusUnprocessableEntity, "order has been processed"), logger)
+				response.Error(w, resmodels.NewError(http.StatusPaymentRequired, "insufficient funds"), logger)
+			} else if errors.Is(err, appstorage.ErrOrderTransactionAlreadyExists) {
+				response.Error(w, resmodels.NewError(http.StatusUnprocessableEntity, "order has been processed"), logger)
 			} else {
-				response.ResponseError(w, gofermart.NewError(http.StatusInternalServerError, "can't withdraw money"), logger)
+				response.Error(w, resmodels.NewError(http.StatusInternalServerError, "can't withdraw money"), logger)
 			}
 			return
 		}

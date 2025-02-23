@@ -18,7 +18,8 @@ import (
 )
 
 type Storage struct {
-	db *sql.DB
+	logger logger.LogClient
+	db     *sql.DB
 }
 
 func New(cfg *config.Config, logger logger.LogClient) (*Storage, error) {
@@ -32,15 +33,17 @@ func New(cfg *config.Config, logger logger.LogClient) (*Storage, error) {
 		return nil, fmt.Errorf("unable to connect to database: %v", err)
 	}
 
-	return &Storage{db: db}, nil
+	return &Storage{
+		db:     db,
+		logger: logger,
+	}, nil
 }
 
 func (s *Storage) CreateUser(
 	ctx context.Context,
 	userID int,
 	login, password string,
-	balance int,
-	logger logger.LogClient,
+	balance float32,
 ) error {
 	const op = "storage.postgres.CreateUser"
 	const insertSQL = "INSERT INTO public.users (id, login, password, balance) VALUES ($1,$2,$3,$4) RETURNING id"
@@ -51,7 +54,7 @@ func (s *Storage) CreateUser(
 	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			logger.Error(fmt.Errorf("prepare sql error: %w", err))
+			s.logger.Error(fmt.Errorf("prepare sql error: %w", err))
 		}
 	}()
 
@@ -100,9 +103,9 @@ func (s *Storage) DeleteAllUsers(ctx context.Context, logger logger.LogClient) e
 func (s *Storage) CreateOrder(
 	ctx context.Context,
 	userID int,
-	orderID, accrual int,
+	orderID string,
+	accrual float32,
 	status string,
-	logger logger.LogClient,
 ) error {
 	const op = "storage.postgres.CreateOrder"
 	const insertSQL = "INSERT INTO public.orders (user_id, order_id, accrual, status) VALUES ($1,$2,$3,$4) RETURNING id"
@@ -113,7 +116,7 @@ func (s *Storage) CreateOrder(
 	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			logger.Error(fmt.Errorf("prepare sql error: %w", err))
+			s.logger.Error(fmt.Errorf("prepare sql error: %w", err))
 		}
 	}()
 
@@ -137,8 +140,9 @@ func (s *Storage) CreateOrder(
 
 func (s *Storage) CreateTransaction(
 	ctx context.Context,
-	userID, orderID, sum int,
-	logger logger.LogClient,
+	userID int,
+	orderID string,
+	sum float32,
 ) error {
 	const op = "storage.postgres.CreateTransaction"
 	const insertSQL = "INSERT INTO public.transactions (user_id, order_id, sum) VALUES ($1,$2,$3) RETURNING id"
@@ -149,7 +153,7 @@ func (s *Storage) CreateTransaction(
 	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			logger.Error(fmt.Errorf("prepare sql error: %w", err))
+			s.logger.Error(fmt.Errorf("prepare sql error: %w", err))
 		}
 	}()
 

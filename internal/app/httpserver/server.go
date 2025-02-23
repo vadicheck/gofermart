@@ -18,11 +18,10 @@ import (
 	"github.com/vadicheck/gofermart/internal/app/handlers/gofermart/user/balance/currentbalance"
 	"github.com/vadicheck/gofermart/internal/app/handlers/gofermart/user/balance/withdraw"
 	"github.com/vadicheck/gofermart/internal/app/handlers/gofermart/user/withdrawals"
+	"github.com/vadicheck/gofermart/internal/app/middleware/gzip"
 	"github.com/vadicheck/gofermart/internal/app/middleware/jwt"
 	"github.com/vadicheck/gofermart/internal/app/repository/gophermart"
 	"github.com/vadicheck/gofermart/internal/app/services/gofermart/balance"
-	"github.com/vadicheck/gofermart/internal/app/services/gofermart/order"
-	"github.com/vadicheck/gofermart/internal/app/services/gofermart/user"
 	"github.com/vadicheck/gofermart/pkg/logger"
 )
 
@@ -60,18 +59,17 @@ func New(
 ) *HTTPServer {
 	r := chi.NewRouter()
 
+	r.Use(gzip.New())
 	r.Use(jwt.New(logger, cfg.Jwt))
 
-	userService := user.New(storage)
-	orderService := order.New(storage)
 	balanceService := balance.New(storage, logger)
 
 	r.Post("/api/user/register", register.New(
 		ctx,
 		cfg.Jwt,
 		logger,
+		storage,
 		validator,
-		userService,
 	))
 
 	r.Post("/api/user/login", login.New(
@@ -90,7 +88,7 @@ func New(
 		balanceService,
 	))
 
-	r.Post("/api/user/orders", uporder.New(ctx, logger, storage, orderService))
+	r.Post("/api/user/orders", uporder.New(ctx, logger, storage))
 	r.Get("/api/user/orders", orders.New(ctx, logger, storage))
 
 	r.Get("/api/user/balance", currentbalance.New(ctx, logger, storage))

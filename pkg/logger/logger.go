@@ -1,7 +1,6 @@
 package logger
 
 import (
-	"context"
 	"runtime/debug"
 
 	"github.com/sirupsen/logrus"
@@ -37,18 +36,6 @@ type LogClient interface {
 	Fatal(err error, fields ...interface{})
 	Panic(err error, fields ...interface{})
 	Debug(msg string, fields ...interface{})
-
-	SetOptionsToCtx(ctx context.Context, options ...options.LoggerOption) context.Context
-	OptionsFromCtx(ctx context.Context) *options.LoggerOptions
-
-	InfoCtx(ctx context.Context, msg string, fields ...interface{})
-	TraceCtx(ctx context.Context, msg string, fields ...interface{})
-	WarnCtx(ctx context.Context, msg string, fields ...interface{})
-	ErrorMessageCtx(ctx context.Context, msg string, fields ...interface{})
-	ErrorCtx(ctx context.Context, err error, fields ...interface{})
-	FatalCtx(ctx context.Context, err error, fields ...interface{})
-	PanicCtx(ctx context.Context, err error, fields ...interface{})
-	DebugCtx(ctx context.Context, msg string, fields ...interface{})
 }
 
 func (l *commonLogger) Info(msg string, fields ...interface{}) {
@@ -84,7 +71,6 @@ func (l *commonLogger) Panic(err error, fields ...interface{}) {
 }
 
 func (l *commonLogger) formatConsoleExtras(extras interface{}) any {
-	// Здеь можно обрабатывать чувствительные поля, например
 	return extras
 }
 
@@ -96,6 +82,6 @@ func (l *commonLogger) setFields(optValues ...options.LoggerOption) *logrus.Entr
 	if opts.Extras != nil {
 		opts.Extras = l.formatConsoleExtras(opts.Extras)
 	}
-	return l.Console.
-		WithField("options", *opts)
+
+	return l.Console.WithField("options", *opts)
 }

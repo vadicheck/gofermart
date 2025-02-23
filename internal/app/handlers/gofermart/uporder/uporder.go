@@ -9,54 +9,56 @@ import (
 	"strconv"
 
 	"github.com/vadicheck/gofermart/internal/app/constants"
-	"github.com/vadicheck/gofermart/internal/app/httpserver/models/gofermart"
 	"github.com/vadicheck/gofermart/internal/app/httpserver/response"
-	"github.com/vadicheck/gofermart/internal/app/repository/gophermart"
-	pstorage "github.com/vadicheck/gofermart/internal/app/storage"
+	models "github.com/vadicheck/gofermart/internal/app/models/gofermart"
+	resmodels "github.com/vadicheck/gofermart/internal/app/models/gofermart/response"
+	apppstorage "github.com/vadicheck/gofermart/internal/app/storage"
 	"github.com/vadicheck/gofermart/pkg/logger"
 	"github.com/vadicheck/gofermart/pkg/luhn"
 )
 
-type orderService interface {
-	CreateOrder(ctx context.Context, orderID int, userID int, logger logger.LogClient) (int, error)
+type orderStorage interface {
+	GetOrderByID(ctx context.Context, orderID string) (models.Order, error)
+	CreateOrder(ctx context.Context, orderID string, userID int) (int, error)
 }
 
 func New(
 	ctx context.Context,
 	logger logger.LogClient,
-	storage gophermart.Gophermart,
-	orderService orderService,
+	storage orderStorage,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			response.ResponseError(w, gofermart.NewError(http.StatusBadRequest, "Invalid request"), logger)
+			response.Error(w, resmodels.NewError(http.StatusBadRequest, "Invalid request"), logger)
 			logger.Error(err)
 			return
 		}
 		defer r.Body.Close()
 
-		orderID, err := strconv.Atoi(string(body))
+		orderID := string(body)
+
+		luhOrderID, err := strconv.Atoi(orderID)
 		if err != nil {
-			response.ResponseError(w, gofermart.NewError(http.StatusUnprocessableEntity, "Invalid order number"), logger)
+			response.Error(w, resmodels.NewError(http.StatusUnprocessableEntity, "Invalid order number"), logger)
 			return
 		}
 
-		if !luhn.Valid(orderID) {
-			response.ResponseError(w, gofermart.NewError(http.StatusUnprocessableEntity, "Invalid order number (luhn)"), logger)
+		if !luhn.Valid(luhOrderID) {
+			response.Error(w, resmodels.NewError(http.StatusUnprocessableEntity, "Invalid order number (luhn)"), logger)
 			return
 		}
 
 		userID, err := strconv.Atoi(r.Header.Get(string(constants.XUserID)))
 		if err != nil {
-			response.ResponseError(w, gofermart.NewError(http.StatusUnauthorized, "Unauthorized"), logger)
+			response.Error(w, resmodels.NewError(http.StatusUnauthorized, "Unauthorized"), logger)
 			return
 		}
 
 		order, err := storage.GetOrderByID(ctx, orderID)
-		if errors.Is(err, pstorage.ErrOrderNotFound) {
-			if _, err = orderService.CreateOrder(ctx, orderID, userID, logger); err != nil {
-				response.ResponseError(w, gofermart.NewError(http.StatusInternalServerError, "Invalid create order"), logger)
+		if errors.Is(err, apppstorage.ErrOrderNotFound) {
+			if _, err = storage.CreateOrder(ctx, orderID, userID); err != nil {
+				response.Error(w, resmodels.NewError(http.StatusInternalServerError, "Invalid create order"), logger)
 				logger.Error(err)
 				return
 			}
@@ -67,7 +69,7 @@ func New(
 
 			return
 		} else if err != nil {
-			response.ResponseError(w, gofermart.NewError(http.StatusInternalServerError, "Invalid create order"), logger)
+			response.Error(w, resmodels.NewError(http.StatusInternalServerError, "Invalid create order"), logger)
 			logger.Error(err)
 			return
 		}

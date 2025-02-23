@@ -17,7 +17,6 @@ import (
 	"github.com/vadicheck/gofermart/internal/app/models/gofermart"
 	"github.com/vadicheck/gofermart/internal/app/storage"
 	"github.com/vadicheck/gofermart/pkg/logger"
-	pass "github.com/vadicheck/gofermart/pkg/password"
 )
 
 type Storage struct {
@@ -26,8 +25,7 @@ type Storage struct {
 }
 
 func New(cfg *config.Config, logger logger.LogClient) (*Storage, error) {
-	err := migration.ExecuteMigrations(cfg, logger)
-	if err != nil {
+	if err := migration.ExecuteMigrations(cfg, logger); err != nil {
 		logger.Fatal(err)
 	}
 
@@ -51,11 +49,7 @@ func (s *Storage) BeginTransaction(ctx context.Context) (*sql.Tx, error) {
 	return tx, nil
 }
 
-func (s *Storage) CreateUser(
-	ctx context.Context,
-	login, password string,
-	logger logger.LogClient,
-) (int, error) {
+func (s *Storage) CreateUser(ctx context.Context, login, password string) (int, error) {
 	const op = "storage.postgres.CreateUser"
 	const insertSQL = "INSERT INTO public.users (login, password) VALUES ($1,$2) RETURNING id"
 
@@ -64,19 +58,14 @@ func (s *Storage) CreateUser(
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 	defer func() {
-		if err := stmt.Close(); err != nil {
-			logger.Error(fmt.Errorf("prepare sql error: %w", err))
+		if err = stmt.Close(); err != nil {
+			s.logger.Error(fmt.Errorf("prepare sql error: %w", err))
 		}
 	}()
 
-	hashPassword, err := pass.HashPassword(password)
-	if err != nil {
-		return 0, fmt.Errorf("%s: %w", op, err)
-	}
-
 	var id int
 
-	err = stmt.QueryRowContext(ctx, login, hashPassword).Scan(&id)
+	err = stmt.QueryRowContext(ctx, login, password).Scan(&id)
 	if err != nil {
 		var pgErr *pgconn.PgError
 
@@ -108,7 +97,7 @@ func (s *Storage) GetUserByID(ctx context.Context, userID int) (gofermart.User, 
 	return s.fillUser(row, "storage.postgres.GetUserByID")
 }
 
-func (s *Storage) ChangeUserBalance(ctx context.Context, userID, balance int, logger logger.LogClient) error {
+func (s *Storage) ChangeUserBalance(ctx context.Context, userID int, balance float32) error {
 	const op = "storage.postgres.ChangeUserBalance"
 	const updateSQL = "UPDATE users SET balance = $1 WHERE id = $2"
 
@@ -118,7 +107,7 @@ func (s *Storage) ChangeUserBalance(ctx context.Context, userID, balance int, lo
 	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			logger.Error(fmt.Errorf("prepare sql error: %w", err))
+			s.logger.Error(fmt.Errorf("prepare sql error: %w", err))
 		}
 	}()
 
@@ -127,7 +116,7 @@ func (s *Storage) ChangeUserBalance(ctx context.Context, userID, balance int, lo
 	return err
 }
 
-func (s *Storage) GetOrders(ctx context.Context, userID int, logger logger.LogClient) ([]gofermart.Order, error) {
+func (s *Storage) GetOrders(ctx context.Context, userID int) ([]gofermart.Order, error) {
 	const op = "storage.postgres.GetOrders"
 	const selectSQL = "SELECT id, user_id, order_id, accrual, status, created_at, updated_at FROM orders WHERE user_id = $1"
 
@@ -135,10 +124,9 @@ func (s *Storage) GetOrders(ctx context.Context, userID int, logger logger.LogCl
 	if err != nil {
 		return nil, fmt.Errorf("failed to get orders [%s]: %w", op, err)
 	}
-
 	defer func() {
 		if err := rows.Close(); err != nil {
-			logger.Error(fmt.Errorf("rows close error: %w", err))
+			s.logger.Error(fmt.Errorf("rows close error: %w", err))
 		}
 	}()
 
@@ -167,11 +155,7 @@ func (s *Storage) GetOrders(ctx context.Context, userID int, logger logger.LogCl
 	return orders, nil
 }
 
-func (s *Storage) CreateOrder(
-	ctx context.Context,
-	orderID, userID int,
-	logger logger.LogClient,
-) (int, error) {
+func (s *Storage) CreateOrder(ctx context.Context, orderID string, userID int) (int, error) {
 	const op = "storage.postgres.CreateOrder"
 	const insertSQL = "INSERT INTO public.orders (user_id, order_id, status) VALUES ($1,$2,$3) RETURNING id"
 
@@ -181,7 +165,7 @@ func (s *Storage) CreateOrder(
 	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			logger.Error(fmt.Errorf("prepare sql error: %w", err))
+			s.logger.Error(fmt.Errorf("prepare sql error: %w", err))
 		}
 	}()
 
@@ -203,7 +187,7 @@ func (s *Storage) CreateOrder(
 	return id, nil
 }
 
-func (s *Storage) GetOrderByID(ctx context.Context, orderID int) (gofermart.Order, error) {
+func (s *Storage) GetOrderByID(ctx context.Context, orderID string) (gofermart.Order, error) {
 	const op = "storage.postgres.GetOrderByID"
 	const selectSQL = "SELECT id, user_id, order_id, accrual, status, created_at, updated_at FROM orders WHERE order_id = $1"
 
@@ -221,11 +205,7 @@ func (s *Storage) GetOrderByID(ctx context.Context, orderID int) (gofermart.Orde
 	return order, nil
 }
 
-func (s *Storage) GetOrdersIdsByStatus(
-	ctx context.Context,
-	statuses []constants.OrderStatus,
-	logger logger.LogClient,
-) ([]int, error) {
+func (s *Storage) GetOrdersIdsByStatus(ctx context.Context, statuses []constants.OrderStatus) ([]string, error) {
 	const op = "storage.postgres.GetOrdersIdsByStatus"
 	const selectSQL = "SELECT order_id FROM orders WHERE status = ANY($1::order_status[])"
 
@@ -237,14 +217,14 @@ func (s *Storage) GetOrdersIdsByStatus(
 
 	defer func() {
 		if err := rows.Close(); err != nil {
-			logger.Error(fmt.Errorf("rows close error: %w", err))
+			s.logger.Error(fmt.Errorf("rows close error: %w", err))
 		}
 	}()
 
-	var ordersIds []int
+	var ordersIds []string
 
 	for rows.Next() {
-		var orderID int
+		var orderID string
 		if err := rows.Scan(&orderID); err != nil {
 			return nil, fmt.Errorf("failed to scan row[%s]: %w", op, err)
 		}
@@ -260,10 +240,9 @@ func (s *Storage) GetOrdersIdsByStatus(
 
 func (s *Storage) UpdateOrder(
 	ctx context.Context,
-	orderID int,
+	orderID string,
 	newStatus constants.OrderStatus,
-	accrual int,
-	logger logger.LogClient,
+	accrual float32,
 ) error {
 	const op = "storage.postgres.UpdateOrder"
 	const updateSQL = "UPDATE orders SET status = $1, accrual = $2 WHERE order_id = $3"
@@ -274,7 +253,7 @@ func (s *Storage) UpdateOrder(
 	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			logger.Error(fmt.Errorf("prepare sql error: %w", err))
+			s.logger.Error(fmt.Errorf("prepare sql error: %w", err))
 		}
 	}()
 
@@ -285,8 +264,9 @@ func (s *Storage) UpdateOrder(
 
 func (s *Storage) CreateTransaction(
 	ctx context.Context,
-	userID, orderID, sum int,
-	logger logger.LogClient,
+	userID int,
+	orderID string,
+	sum float32,
 ) error {
 	const op = "storage.postgres.CreateTransaction"
 	const insertSQL = "INSERT INTO public.transactions (user_id, order_id, sum) VALUES ($1,$2,$3) RETURNING id"
@@ -297,7 +277,7 @@ func (s *Storage) CreateTransaction(
 	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			logger.Error(fmt.Errorf("prepare sql error: %w", err))
+			s.logger.Error(fmt.Errorf("prepare sql error: %w", err))
 		}
 	}()
 
@@ -327,7 +307,6 @@ func (s *Storage) GetTransactionsByUserID(ctx context.Context, userID int) ([]go
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transactions [%s]: %w", op, err)
 	}
-
 	defer func() {
 		if err := rows.Close(); err != nil {
 			s.logger.Error(fmt.Errorf("rows close error: %w", err))
