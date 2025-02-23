@@ -1,6 +1,7 @@
 package jwt
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -42,6 +43,11 @@ func New(logger logger.LogClient, jwtConfig config.JwtConfig) func(next http.Han
 
 			decodedJwtToken, err := securejwt.DecodeJwtToken(jwtToken, jwtConfig.JwtSecret)
 			if err != nil {
+				if errors.Is(err, jwt.ErrTokenExpired) {
+					response.ResponseError(w, gofermart.NewError(http.StatusUnauthorized, "Unauthorized"), logger)
+					return
+				}
+
 				logger.Error(fmt.Errorf("can't decode jwt token: %w", err))
 				response.ResponseError(w, gofermart.NewError(http.StatusInternalServerError, "Auth error"), logger)
 				return

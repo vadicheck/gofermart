@@ -1,6 +1,7 @@
 package jwt
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -36,6 +37,10 @@ func DecodeJwtToken(jwtToken, jwtSecret string) (*Claims, error) {
 		return []byte(jwtSecret), nil
 	})
 	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return nil, err
+		}
+
 		return nil, fmt.Errorf("can't parse token: %w", err)
 	}
 
