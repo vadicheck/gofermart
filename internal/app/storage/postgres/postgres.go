@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgerrcode"
 	_ "github.com/jackc/pgx/v4/stdlib"
+	"github.com/lib/pq"
 
 	"github.com/vadicheck/gofermart/internal/app/config"
 	"github.com/vadicheck/gofermart/internal/app/constants"
@@ -207,4 +208,66 @@ func (s *Storage) GetOrderByID(ctx context.Context, orderID int) (gofermart.Orde
 	}
 
 	return order, nil
+}
+
+func (s *Storage) GetOrdersIdsByStatus(
+	ctx context.Context,
+	statuses []constants.OrderStatus,
+	logger logger.LogClient,
+) ([]int, error) {
+	const op = "storage.postgres.GetOrdersIdsByStatus"
+	const selectSQL = "SELECT order_id FROM orders WHERE status = ANY($1::order_status[])"
+
+	rows, err := s.db.QueryContext(ctx, selectSQL, pq.Array(statuses))
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get orders by status [%s] [%s]: %w", statuses, op, err)
+	}
+
+	defer func() {
+		if err := rows.Close(); err != nil {
+			logger.Error(fmt.Errorf("rows close error: %w", err))
+		}
+	}()
+
+	var ordersIds []int
+
+	for rows.Next() {
+		var orderID int
+		if err := rows.Scan(&orderID); err != nil {
+			return nil, fmt.Errorf("failed to scan row[%s]: %w", op, err)
+		}
+		ordersIds = append(ordersIds, orderID)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error encountered during rows iteration [%s]: %w", op, err)
+	}
+
+	return ordersIds, nil
+}
+
+func (s *Storage) UpdateOrder(
+	ctx context.Context,
+	orderID int,
+	newStatus constants.OrderStatus,
+	accrual int,
+	logger logger.LogClient,
+) error {
+	const op = "storage.postgres.UpdateOrder"
+	const updateSQL = "UPDATE orders SET status = $1, accrual = $2 WHERE order_id = $3"
+
+	stmt, err := s.db.Prepare(updateSQL)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			logger.Error(fmt.Errorf("prepare sql error: %w", err))
+		}
+	}()
+
+	_, err = stmt.ExecContext(ctx, newStatus, accrual, orderID)
+
+	return err
 }

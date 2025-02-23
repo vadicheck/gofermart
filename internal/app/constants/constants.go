@@ -4,7 +4,9 @@ type headerKey string
 
 const XUserID headerKey = "X-User-ID"
 
-const StatusNew = "NEW"
-const StatusProcessing = "PROCESSING"
-const StatusInvalid = "INVALID"
-const StatusProcessed = "PROCESSED"
+type OrderStatus string
+
+const StatusNew OrderStatus = "NEW"
+const StatusProcessing OrderStatus = "PROCESSING"
+const StatusInvalid OrderStatus = "INVALID"
+const StatusProcessed OrderStatus = "PROCESSED"

@@ -7,6 +7,7 @@ import (
 )
 
 type Config struct {
+	AccrualAddress       string `env:"ACCRUAL_ADDRESS"`
 	HTTPAddress          string `env:"RUN_ADDRESS"`
 	DatabaseDSN          string `env:"DATABASE_URI"`
 	AccrualSystemAddress string `env:"ACCRUAL_SYSTEM_ADDRESS"`
@@ -23,6 +24,7 @@ type JwtConfig struct {
 func NewConfig() (*Config, error) {
 	var cfg Config
 
+	flag.StringVar(&cfg.AccrualAddress, "aa", "http://localhost:8080", "Accrual server address")
 	flag.StringVar(&cfg.HTTPAddress, "a", "localhost:8082", "HTTP server startup address")
 	flag.StringVar(&cfg.DatabaseDSN, "d", "", "database DSN")
 	flag.StringVar(&cfg.AccrualSystemAddress, "r", "", "accrual system address")
@@ -32,6 +34,10 @@ func NewConfig() (*Config, error) {
 	flag.Parse()
 
 	cfg.Jwt.JwtTokenExpire = time.Hour * 24
+
+	if accrualAddress := os.Getenv("ACCRUAL_ADDRESS"); accrualAddress != "" {
+		cfg.AccrualAddress = accrualAddress
+	}
 
 	if httpAddress := os.Getenv("RUN_ADDRESS"); httpAddress != "" {
 		cfg.HTTPAddress = httpAddress

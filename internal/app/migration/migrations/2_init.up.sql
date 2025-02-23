@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS orders
     user_id    INT                      NOT NULL,
     order_id   BIGINT                   NOT NULL UNIQUE,
     accrual    INT                      NOT NULL DEFAULT 0,
-    status     order_status             NOT NULL,
+    status     order_status             NOT NULL DEFAULT 'NEW'::order_status,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_user
