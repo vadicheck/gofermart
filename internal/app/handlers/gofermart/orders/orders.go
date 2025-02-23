@@ -23,7 +23,7 @@ func New(
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, err := strconv.Atoi(r.Header.Get(string(constants.XUserID)))
 		if err != nil {
-			response.ResponseError(w, gofermart.NewError(http.StatusBadRequest, "Invalid user number"), logger)
+			response.ResponseError(w, gofermart.NewError(http.StatusUnauthorized, "Unauthorized"), logger)
 			return
 		}
 

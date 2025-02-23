@@ -2,6 +2,7 @@ package sync
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"sync"
@@ -25,6 +26,11 @@ type App struct {
 }
 
 type orderService interface {
+	BeginTransaction(ctx context.Context) (*sql.Tx, error)
+
+	GetUserByID(ctx context.Context, userID int) (gofermart.User, error)
+	ChangeUserBalance(ctx context.Context, userID int, balance int, logger logger.LogClient) error
+
 	GetOrderByID(ctx context.Context, orderID int) (gofermart.Order, error)
 	GetOrdersIdsByStatus(ctx context.Context, statuses []constants.OrderStatus, logger logger.LogClient) ([]int, error)
 	UpdateOrder(ctx context.Context, orderID int, newStatus constants.OrderStatus, accrual int, logger logger.LogClient) error
@@ -57,6 +63,8 @@ func (sa *App) Run(
 	)
 	accrualService := accrualservice.New(transport, sa.accrualAddress, sa.logger)
 
+	var m sync.Mutex
+
 	wg.Add(1)
 	go func() {
 		jobs := make(chan int, maxQueueLength)
@@ -65,8 +73,8 @@ func (sa *App) Run(
 		defer close(jobs)
 		defer close(results)
 
-		for w := 1; w <= 3; w++ {
-			go sa.handleOrder(ctx, accrualService, jobs)
+		for w := 1; w <= 5; w++ {
+			go sa.handleOrder(ctx, accrualService, &m, jobs)
 		}
 
 		statuses := []constants.OrderStatus{
@@ -100,6 +108,7 @@ func (sa *App) Run(
 func (sa *App) handleOrder(
 	ctx context.Context,
 	accrualService accrualservice.Service,
+	m *sync.Mutex,
 	jobs <-chan int,
 ) {
 	for orderID := range jobs {
@@ -125,17 +134,61 @@ func (sa *App) handleOrder(
 			sa.logger.Error(fmt.Errorf("failed to get order from accrual system. err: %w", err))
 		}
 
-		err = sa.orderService.UpdateOrder(
-			ctx,
-			orderID,
-			constants.OrderStatus(orderResponse.Status),
-			orderResponse.Accrual,
-			sa.logger,
-		)
+		m.Lock()
+		err = sa.apply(ctx, orderID, order.UserID, orderResponse)
+		m.Unlock()
+
 		if err != nil {
-			sa.logger.Error(fmt.Errorf("failed to update order. err: %w", err))
+			sa.logger.Error(fmt.Errorf("failed to apply order changes. err: %w", err))
+		}
+	}
+}
+
+func (sa *App) apply(
+	ctx context.Context,
+	orderID int,
+	userID int,
+	orderResponse *accrualservice.GetOrderResponse,
+) error {
+	tx, err := sa.orderService.BeginTransaction(ctx)
+	if err != nil {
+		return fmt.Errorf("can't begin transaction: %w", err)
+	}
+
+	defer func() {
+		if err = tx.Rollback(); err != nil {
+			sa.logger.Error(fmt.Errorf("transaction rollback error: %w", err))
+		}
+	}()
+
+	if constants.OrderStatus(orderResponse.Status) == constants.StatusProcessed {
+		user, err := sa.orderService.GetUserByID(ctx, userID)
+		if err != nil {
+			return errors.New("user not found")
 		}
 
-		time.Sleep(time.Second)
+		err = sa.orderService.ChangeUserBalance(ctx, user.ID, user.Balance+orderResponse.Accrual, sa.logger)
+		if err != nil {
+			return fmt.Errorf("failed to change user balance. err: %w", err)
+		}
 	}
+
+	err = sa.orderService.UpdateOrder(
+		ctx,
+		orderID,
+		constants.OrderStatus(orderResponse.Status),
+		orderResponse.Accrual,
+		sa.logger,
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to update order. err: %w", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("can't commit transaction: %w", err)
+	}
+
+	return nil
 }

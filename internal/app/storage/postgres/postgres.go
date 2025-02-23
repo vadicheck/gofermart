@@ -38,6 +38,15 @@ func New(cfg *config.Config, logger logger.LogClient) (*Storage, error) {
 	return &Storage{db: db}, nil
 }
 
+func (s *Storage) BeginTransaction(ctx context.Context) (*sql.Tx, error) {
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	if err != nil {
+		return nil, fmt.Errorf("can't begin transaction: %w", err)
+	}
+
+	return tx, nil
+}
+
 func (s *Storage) CreateUser(
 	ctx context.Context,
 	login, password string,
@@ -80,21 +89,38 @@ func (s *Storage) CreateUser(
 }
 
 func (s *Storage) GetUserByLogin(ctx context.Context, login string) (gofermart.User, error) {
-	const op = "storage.postgres.GetUserByLogin"
-	const selectSQL = "SELECT id, login, password FROM users WHERE login = $1"
-
-	var user gofermart.User
+	const selectSQL = "SELECT id, login, password, balance FROM users WHERE login = $1"
 
 	row := s.db.QueryRowContext(ctx, selectSQL, login)
 
-	err := row.Scan(&user.ID, &user.Login, &user.Password)
-	if errors.Is(err, sql.ErrNoRows) {
-		return user, storage.ErrUserNotFound
-	} else if err != nil {
-		return user, fmt.Errorf("%s: %w", op, err)
-	}
+	return s.fillUser(row, "storage.postgres.GetUserByLogin")
+}
 
-	return user, nil
+func (s *Storage) GetUserByID(ctx context.Context, userID int) (gofermart.User, error) {
+	const selectSQL = "SELECT id, login, password, balance FROM users WHERE id = $1"
+
+	row := s.db.QueryRowContext(ctx, selectSQL, userID)
+
+	return s.fillUser(row, "storage.postgres.GetUserByID")
+}
+
+func (s *Storage) ChangeUserBalance(ctx context.Context, userID, balance int, logger logger.LogClient) error {
+	const op = "storage.postgres.ChangeUserBalance"
+	const updateSQL = "UPDATE users SET balance = $1 WHERE id = $2"
+
+	stmt, err := s.db.Prepare(updateSQL)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			logger.Error(fmt.Errorf("prepare sql error: %w", err))
+		}
+	}()
+
+	_, err = stmt.ExecContext(ctx, balance, userID)
+
+	return err
 }
 
 func (s *Storage) DeleteAllUsers(ctx context.Context, logger logger.LogClient) error {
@@ -270,4 +296,53 @@ func (s *Storage) UpdateOrder(
 	_, err = stmt.ExecContext(ctx, newStatus, accrual, orderID)
 
 	return err
+}
+
+func (s *Storage) CreateTransaction(
+	ctx context.Context,
+	userID, orderID, sum int,
+	logger logger.LogClient,
+) error {
+	const op = "storage.postgres.CreateTransaction"
+	const insertSQL = "INSERT INTO public.transactions (user_id, order_id, sum) VALUES ($1,$2,$3) RETURNING id"
+
+	stmt, err := s.db.Prepare(insertSQL)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			logger.Error(fmt.Errorf("prepare sql error: %w", err))
+		}
+	}()
+
+	var id int
+
+	err = stmt.QueryRowContext(ctx, userID, orderID, sum).Scan(&id)
+	if err != nil {
+		var pgErr *pgconn.PgError
+
+		if errors.As(err, &pgErr) && pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
+			if pgErr.Code == pgerrcode.UniqueViolation {
+				return storage.ErrOrderTransactionAlreadyExists
+			}
+		}
+
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	return nil
+}
+
+func (s *Storage) fillUser(row *sql.Row, op string) (gofermart.User, error) {
+	var user gofermart.User
+
+	err := row.Scan(&user.ID, &user.Login, &user.Password, &user.Balance)
+	if errors.Is(err, sql.ErrNoRows) {
+		return user, storage.ErrUserNotFound
+	} else if err != nil {
+		return user, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return user, nil
 }
