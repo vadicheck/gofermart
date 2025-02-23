@@ -39,10 +39,11 @@ func (s *Storage) CreateUser(
 	ctx context.Context,
 	userID int,
 	login, password string,
+	balance int,
 	logger logger.LogClient,
 ) error {
 	const op = "storage.postgres.CreateUser"
-	const insertSQL = "INSERT INTO public.users (id, login, password) VALUES ($1,$2,$3) RETURNING id"
+	const insertSQL = "INSERT INTO public.users (id, login, password, balance) VALUES ($1,$2,$3,$4) RETURNING id"
 
 	stmt, err := s.db.Prepare(insertSQL)
 	if err != nil {
@@ -61,7 +62,7 @@ func (s *Storage) CreateUser(
 
 	var id int
 
-	err = stmt.QueryRowContext(ctx, userID, login, hashPassword).Scan(&id)
+	err = stmt.QueryRowContext(ctx, userID, login, hashPassword, balance).Scan(&id)
 	if err != nil {
 		var pgErr *pgconn.PgError
 

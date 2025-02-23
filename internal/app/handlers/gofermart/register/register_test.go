@@ -16,6 +16,7 @@ import (
 	"github.com/vadicheck/gofermart/internal/app/log"
 	"github.com/vadicheck/gofermart/internal/app/services/gofermart/user"
 	"github.com/vadicheck/gofermart/internal/app/storage/postgres"
+	"github.com/vadicheck/gofermart/internal/app/storage/ptest"
 )
 
 func TestNew(t *testing.T) {
@@ -93,7 +94,12 @@ func TestNew(t *testing.T) {
 		panic(err)
 	}
 
-	err = storage.DeleteAllUsers(ctx, logger)
+	testStorage, err := ptest.New(cfg, logger)
+	if err != nil {
+		panic(err)
+	}
+
+	err = testStorage.DeleteAllUsers(ctx, logger)
 	if err != nil {
 		panic(err)
 	}

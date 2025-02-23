@@ -25,6 +25,7 @@ func TestNew(t *testing.T) {
 		ID       int    `json:"id"`
 		Login    string `json:"login"`
 		Password string `json:"password"`
+		Balance  int    `json:"balance"`
 	}
 	type orderData struct {
 		UserID  int    `json:"user_id"`
@@ -42,9 +43,9 @@ func TestNew(t *testing.T) {
 		responseError responseError
 	}
 	users := []userData{
-		{ID: 1, Login: "user1", Password: "passw0rd"},
-		{ID: 2, Login: "user2", Password: "passw0rd"},
-		{ID: 3, Login: "user3", Password: "passw0rd"},
+		{ID: 1, Login: "user1", Password: "passw0rd", Balance: 1000},
+		{ID: 2, Login: "user2", Password: "passw0rd", Balance: 1000},
+		{ID: 3, Login: "user3", Password: "passw0rd", Balance: 1000},
 	}
 	orders := []orderData{
 		{UserID: 1, OrderID: 123456789007, Accrual: 100, Status: "NEW"},
@@ -109,7 +110,7 @@ func TestNew(t *testing.T) {
 	}
 
 	for _, u := range users {
-		err = testStorage.CreateUser(ctx, u.ID, u.Login, u.Password, logger)
+		err = testStorage.CreateUser(ctx, u.ID, u.Login, u.Password, u.Balance, logger)
 		if err != nil {
 			panic(err)
 		}

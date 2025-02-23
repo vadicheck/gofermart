@@ -10,4 +10,6 @@ var (
 
 	ErrOrderNotFound      = errors.New("order not found")
 	ErrOrderAlreadyExists = errors.New("order already exists")
+
+	ErrOrderTransactionAlreadyExists = errors.New("the order transaction already exists")
 )

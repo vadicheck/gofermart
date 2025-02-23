@@ -18,3 +18,11 @@ type Order struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
+
+type Transaction struct {
+	ID        int       `json:"id"`
+	UserID    int       `json:"user_id"`
+	OrderID   int64     `json:"order_id"`
+	Sum       int       `json:"sum"`
+	CreatedAt time.Time `json:"created_at"`
+}

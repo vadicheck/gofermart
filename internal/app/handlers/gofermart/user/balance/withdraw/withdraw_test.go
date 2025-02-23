@@ -1,34 +1,42 @@
-package uporder
+package withdraw
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
-	"strings"
 	"testing"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vadicheck/gofermart/internal/app/config"
 	"github.com/vadicheck/gofermart/internal/app/constants"
 	"github.com/vadicheck/gofermart/internal/app/log"
-	"github.com/vadicheck/gofermart/internal/app/services/gofermart/order"
+	"github.com/vadicheck/gofermart/internal/app/services/gofermart/balance"
 	"github.com/vadicheck/gofermart/internal/app/storage/postgres"
 	"github.com/vadicheck/gofermart/internal/app/storage/ptest"
 )
 
 func TestNew(t *testing.T) {
 	type request struct {
-		UserID  int    `json:"user_id"`
-		Content string `json:"content"`
+		OrderID string `json:"order"`
+		Sum     int    `json:"sum"`
 	}
 	type userData struct {
 		ID       int    `json:"id"`
 		Login    string `json:"login"`
 		Password string `json:"password"`
 		Balance  int    `json:"balance"`
+	}
+	type orderData struct {
+		UserID  int    `json:"user_id"`
+		OrderID int    `json:"order_id"`
+		Accrual int    `json:"accrual"`
+		Status  string `json:"status"`
 	}
 	type responseError struct {
 		Code    int    `json:"code"`
@@ -44,57 +52,68 @@ func TestNew(t *testing.T) {
 		{ID: 2, Login: "user2", Password: "passw0rd", Balance: 1000},
 		{ID: 3, Login: "user3", Password: "passw0rd", Balance: 1000},
 	}
+	orders := []orderData{
+		{UserID: 1, OrderID: 123456789007, Accrual: 100, Status: "NEW"},
+		{UserID: 3, OrderID: 123456789015, Accrual: 100, Status: "NEW"},
+		{UserID: 3, OrderID: 123456789023, Accrual: 100, Status: "NEW"},
+		{UserID: 3, OrderID: 123456789031, Accrual: 100, Status: "NEW"},
+	}
 	tests := []struct {
 		name    string
+		userID  int
 		request request
 		want    want
 	}{
 		{
-			name: "error number (luhn) #1",
-			want: want{
-				contentType:   "application/json",
-				statusCode:    http.StatusUnprocessableEntity,
-				responseError: responseError{},
-			},
-			request: request{
-				UserID:  1,
-				Content: "123457",
-			},
-		},
-		{
-			name: "uporder test #2",
-			want: want{
-				contentType:   "application/json",
-				statusCode:    http.StatusAccepted,
-				responseError: responseError{},
-			},
-			request: request{
-				UserID:  1,
-				Content: "123456789007",
-			},
-		},
-		{
-			name: "duplicate order number #3",
+			name:   "success withdraw #1",
+			userID: 1,
 			want: want{
 				contentType:   "application/json",
 				statusCode:    http.StatusOK,
 				responseError: responseError{},
 			},
 			request: request{
-				UserID:  1,
-				Content: "123456789007",
+				OrderID: "123456789346",
+				Sum:     500,
 			},
 		},
 		{
-			name: "conflict order number #4",
+			name:   "order has been processed #2",
+			userID: 1,
 			want: want{
 				contentType:   "application/json",
-				statusCode:    http.StatusConflict,
+				statusCode:    http.StatusUnprocessableEntity,
 				responseError: responseError{},
 			},
 			request: request{
-				UserID:  2,
-				Content: "123456789007",
+				OrderID: "123456789346",
+				Sum:     500,
+			},
+		},
+		{
+			name:   "insufficient funds #3",
+			userID: 1,
+			want: want{
+				contentType:   "application/json",
+				statusCode:    http.StatusPaymentRequired,
+				responseError: responseError{},
+			},
+			request: request{
+				OrderID: "123456789270",
+				Sum:     1100,
+			},
+		},
+		{
+			name:   "incorrect order number #4",
+			userID: 1,
+			want: want{
+				contentType:   "application/json",
+				statusCode:    http.StatusUnprocessableEntity,
+				responseError: responseError{},
+			},
+			request: request{
+				OrderID: "123456780",
+				Sum:     1100,
 			},
 		},
 	}
@@ -133,22 +152,36 @@ func TestNew(t *testing.T) {
 		}
 	}
 
-	orderService := order.New(storage)
+	for _, o := range orders {
+		err = testStorage.CreateOrder(ctx, o.UserID, o.OrderID, o.Accrual, o.Status, logger)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	balanceService := balance.New(storage, logger)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(tt.request.Content))
-			req.Header.Set("Content-Type", "text/plain")
+			jsonData, err := json.Marshal(tt.request)
+			if err != nil {
+				fmt.Println("Ошибка кодирования в JSON:", err)
+				return
+			}
+
+			req := httptest.NewRequest(http.MethodPost, "/api/user/balance/withdraw", bytes.NewBuffer(jsonData))
+			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 
 			handler := New(
 				ctx,
 				logger,
 				storage,
-				orderService,
+				*validator.New(),
+				balanceService,
 			)
 
-			req.Header.Set(string(constants.XUserID), strconv.Itoa(tt.request.UserID))
+			req.Header.Set(string(constants.XUserID), strconv.Itoa(tt.userID))
 
 			handler(w, req)
 

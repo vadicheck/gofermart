@@ -123,25 +123,6 @@ func (s *Storage) ChangeUserBalance(ctx context.Context, userID, balance int, lo
 	return err
 }
 
-func (s *Storage) DeleteAllUsers(ctx context.Context, logger logger.LogClient) error {
-	const op = "storage.postgres.DeleteAllUsers"
-	const deleteSQL = "DELETE FROM users WHERE id <> 0"
-
-	stmt, err := s.db.Prepare(deleteSQL)
-	if err != nil {
-		return fmt.Errorf("%s: %w", op, err)
-	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			logger.Error(fmt.Errorf("prepare sql error: %w", err))
-		}
-	}()
-
-	_, err = stmt.ExecContext(ctx)
-
-	return err
-}
-
 func (s *Storage) GetOrders(ctx context.Context, userID int, logger logger.LogClient) ([]gofermart.Order, error) {
 	const op = "storage.postgres.GetOrders"
 	const selectSQL = "SELECT id, user_id, order_id, accrual, status, created_at, updated_at FROM orders WHERE user_id = $1"

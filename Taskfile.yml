@@ -22,6 +22,7 @@ tasks:
       - go test -v ./internal/app/handlers/gofermart/register
       - go test -v ./internal/app/handlers/gofermart/uporder
       - go test -v ./internal/app/handlers/gofermart/orders
+      - go test -v ./internal/app/handlers/gofermart/user/balance/withdraw
 
   imports:
     desc: "Run imports"

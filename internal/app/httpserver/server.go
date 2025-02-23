@@ -15,8 +15,10 @@ import (
 	"github.com/vadicheck/gofermart/internal/app/handlers/gofermart/orders"
 	"github.com/vadicheck/gofermart/internal/app/handlers/gofermart/register"
 	"github.com/vadicheck/gofermart/internal/app/handlers/gofermart/uporder"
+	"github.com/vadicheck/gofermart/internal/app/handlers/gofermart/user/balance/withdraw"
 	"github.com/vadicheck/gofermart/internal/app/middleware/jwt"
 	"github.com/vadicheck/gofermart/internal/app/repository/gophermart"
+	"github.com/vadicheck/gofermart/internal/app/services/gofermart/balance"
 	"github.com/vadicheck/gofermart/internal/app/services/gofermart/order"
 	"github.com/vadicheck/gofermart/internal/app/services/gofermart/user"
 	"github.com/vadicheck/gofermart/pkg/logger"
@@ -60,6 +62,7 @@ func New(
 
 	userService := user.New(storage)
 	orderService := order.New(storage)
+	balanceService := balance.New(storage, logger)
 
 	r.Post("/api/user/register", register.New(
 		ctx,
@@ -75,6 +78,14 @@ func New(
 		logger,
 		validator,
 		storage,
+	))
+
+	r.Post("/api/user/balance/withdraw", withdraw.New(
+		ctx,
+		logger,
+		storage,
+		validator,
+		balanceService,
 	))
 
 	r.Post("/api/user/orders", uporder.New(ctx, logger, storage, orderService))
