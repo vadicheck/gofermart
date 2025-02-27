@@ -66,3 +66,8 @@ jobs:
       - name: My Test
         run: |
           echo "My custom test"
+          go test -v internal/app/handlers/gofermart/register
+          go test -v internal/app/handlers/gofermart/uporder
+          go test -v internal/app/handlers/gofermart/orders
+          go test -v internal/app/handlers/gofermart/user/balance/withdraw
+          go test -v internal/app/handlers/gofermart/user/balance/currentbalance
