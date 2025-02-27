@@ -2,6 +2,21 @@ x-common: &common
   restart: unless-stopped
 
 services:
+  app:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    container_name: gofermart-app
+    ports:
+      - ${APP_PORT}:8082
+    env_file:
+      - .env
+    depends_on:
+      - database
+    command:
+      - /app
+    <<: *common
+
   database:
     image: postgres:15-alpine
     container_name: gofermart-database

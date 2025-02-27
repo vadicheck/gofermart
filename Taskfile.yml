@@ -1,15 +1,17 @@
 version: '3'
 
 tasks:
-  migrate:
-    desc: "Run database migrations"
-    cmds:
-      - go run ./cmd/migrator --storage-path=./storage/database.db --migrations-path=./migrations
-
   run:
-    desc: "Run database migrations"
+    desc: "Run app (docker)"
+    env:
+      APP_PORT: 8082
+      LOG_LEVEL: info
+      DATABASE_URI: postgresql://app:1234@database:5432/app?sslmode=disable
+      MIGRATIONS_FILE_PATH: file://migrations
     cmds:
-      - go run ./cmd/shortener --storage-path=./storage/database.db
+      - docker compose build
+      - docker compose down
+      - docker compose up -d
 
   test:
     desc: "Run tests"
