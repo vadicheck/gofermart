@@ -1,0 +1,7 @@
+services:
+  database:
+    ports:
+      - ${POSTGRES_PORT:-5440}:5432
+  test-database:
+    ports:
+      - ${TEST_POSTGRES_PORT:-5445}:5432

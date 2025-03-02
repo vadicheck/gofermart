@@ -21,3 +21,8 @@ vendor/
 # IDEs directories
 .idea
 .vscode
+
+.env
+goods.json
+orders.json
+reg_orders.json
