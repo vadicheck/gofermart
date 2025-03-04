@@ -65,7 +65,7 @@ jobs:
 
       - name: My Test
         env:
-          MIGRATIONS_FILE_PATH: file://migrations
+          MIGRATIONS_FILE_PATH: file:///__w/gofermart/gofermart/internal/app/migration/migrations
           DATABASE_URI: postgresql://postgres:postgres@postgres/praktikum?sslmode=disable
         run: |
           echo "My custom test"
