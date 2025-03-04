@@ -64,5 +64,11 @@ jobs:
             -accrual-database-uri="postgresql://postgres:postgres@postgres/praktikum?sslmode=disable"
 
       - name: My Test
+        env:
+          MIGRATIONS_FILE_PATH: file://migrations
+          DATABASE_URI: postgresql://postgres:postgres@postgres/praktikum?sslmode=disable
         run: |
           echo "My custom test"
+          pwd
+          ls
+          go test ./...

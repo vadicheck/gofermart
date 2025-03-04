@@ -26,3 +26,5 @@ vendor/
 goods.json
 orders.json
 reg_orders.json
+
+accrual_server.tar.gz
