@@ -1,0 +1,46 @@
+x-common: &common
+  restart: unless-stopped
+
+services:
+  app:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    container_name: gofermart-app
+    environment:
+      LOG_LEVEL: info
+      RUN_ADDRESS: 0.0.0.0:8080
+      ACCRUAL_SYSTEM_ADDRESS: http://accrual:8080
+      DATABASE_URI: postgresql://app:1234@database:5432/app?sslmode=disable
+      MIGRATIONS_FILE_PATH: file://migrations
+    ports:
+      - ${APP_PORT:-8080}:8080
+    env_file:
+      - .env
+    depends_on:
+      - database
+    command:
+      - /app
+    <<: *common
+
+  accrual:
+    image: accrual_service:latest
+    container_name: gofermart-accrual
+    ports:
+      - ${ACCRUAL_PORT:-8082}:8080
+    env_file:
+      - .env
+    <<: *common
+
+  database:
+    image: postgres:15-alpine
+    container_name: gofermart-database
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: 1234
+    env_file:
+      - .env
+    volumes:
+      - ./docker/db/data:/var/lib/postgresql/data:rw
+    <<: *common
