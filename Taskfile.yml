@@ -3,12 +3,6 @@ version: '3'
 tasks:
   run:
     desc: "Run app (docker)"
-    env:
-      APP_PORT: 8085
-      ACCRUAL_PORT: 8086
-      LOG_LEVEL: info
-      DATABASE_URI: postgresql://app:1234@database:5432/app?sslmode=disable
-      MIGRATIONS_FILE_PATH: file://migrations
     cmds:
       - docker compose build
       - docker compose down

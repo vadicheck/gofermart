@@ -130,6 +130,10 @@ func (sa *App) handleOrder(
 			sa.logger.Error(fmt.Errorf("failed to get order from accrual system. err: %w", err))
 		}
 
+		if orderResponse == nil {
+			continue
+		}
+
 		m.Lock()
 		err = sa.apply(ctx, orderID, order.UserID, orderResponse)
 		m.Unlock()
