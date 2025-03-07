@@ -2,6 +2,7 @@ package uporder
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +15,7 @@ import (
 	"github.com/vadicheck/gofermart/internal/app/config"
 	"github.com/vadicheck/gofermart/internal/app/constants"
 	"github.com/vadicheck/gofermart/internal/app/log"
+	storage2 "github.com/vadicheck/gofermart/internal/app/storage"
 	"github.com/vadicheck/gofermart/internal/app/storage/postgres"
 	"github.com/vadicheck/gofermart/internal/app/storage/ptest"
 )
@@ -39,9 +41,9 @@ func TestNew(t *testing.T) {
 		responseError responseError
 	}
 	users := []userData{
-		{ID: 1, Login: "user1", Password: "passw0rd", Balance: 1000},
-		{ID: 2, Login: "user2", Password: "passw0rd", Balance: 1000},
-		{ID: 3, Login: "user3", Password: "passw0rd", Balance: 1000},
+		{ID: 1, Login: "uporder1", Password: "passw0rd", Balance: 1000},
+		{ID: 2, Login: "uporder2", Password: "passw0rd", Balance: 1000},
+		{ID: 3, Login: "uporder3", Password: "passw0rd", Balance: 1000},
 	}
 	tests := []struct {
 		name    string
@@ -69,7 +71,7 @@ func TestNew(t *testing.T) {
 			},
 			request: request{
 				UserID:  1,
-				Content: "123456789007",
+				Content: "3274880339",
 			},
 		},
 		{
@@ -81,7 +83,7 @@ func TestNew(t *testing.T) {
 			},
 			request: request{
 				UserID:  1,
-				Content: "123456789007",
+				Content: "3274880339",
 			},
 		},
 		{
@@ -93,7 +95,7 @@ func TestNew(t *testing.T) {
 			},
 			request: request{
 				UserID:  2,
-				Content: "123456789007",
+				Content: "3274880339",
 			},
 		},
 	}
@@ -120,14 +122,20 @@ func TestNew(t *testing.T) {
 		panic(err)
 	}
 
-	err = testStorage.DeleteAllUsers(ctx, logger)
+	logins := make([]string, len(users))
+
+	for i, user := range users {
+		logins[i] = user.Login
+	}
+
+	err = testStorage.DeleteUsers(ctx, logger, logins)
 	if err != nil {
 		panic(err)
 	}
 
 	for _, u := range users {
 		err = testStorage.CreateUser(ctx, u.ID, u.Login, u.Password, u.Balance)
-		if err != nil {
+		if err != nil && !errors.Is(err, storage2.ErrLoginAlreadyExists) {
 			panic(err)
 		}
 	}

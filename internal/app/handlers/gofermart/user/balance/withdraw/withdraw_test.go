@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -17,6 +18,7 @@ import (
 	"github.com/vadicheck/gofermart/internal/app/constants"
 	"github.com/vadicheck/gofermart/internal/app/log"
 	"github.com/vadicheck/gofermart/internal/app/services/gofermart/balance"
+	storage2 "github.com/vadicheck/gofermart/internal/app/storage"
 	"github.com/vadicheck/gofermart/internal/app/storage/postgres"
 	"github.com/vadicheck/gofermart/internal/app/storage/ptest"
 )
@@ -48,9 +50,9 @@ func TestNew(t *testing.T) {
 		responseError responseError
 	}
 	users := []userData{
-		{ID: 1, Login: "user1", Password: "passw0rd", Balance: 1000},
-		{ID: 2, Login: "user2", Password: "passw0rd", Balance: 1000},
-		{ID: 3, Login: "user3", Password: "passw0rd", Balance: 1000},
+		{ID: 1, Login: "withdraw1", Password: "passw0rd", Balance: 1000},
+		{ID: 2, Login: "withdraw2", Password: "passw0rd", Balance: 1000},
+		{ID: 3, Login: "withdraw3", Password: "passw0rd", Balance: 1000},
 	}
 	orders := []orderData{
 		{UserID: 1, OrderID: "123456789007", Accrual: 100, Status: "NEW"},
@@ -140,21 +142,27 @@ func TestNew(t *testing.T) {
 		panic(err)
 	}
 
-	err = testStorage.DeleteAllUsers(ctx, logger)
+	logins := make([]string, len(users))
+
+	for i, user := range users {
+		logins[i] = user.Login
+	}
+
+	err = testStorage.DeleteUsers(ctx, logger, logins)
 	if err != nil {
 		panic(err)
 	}
 
 	for _, u := range users {
 		err = testStorage.CreateUser(ctx, u.ID, u.Login, u.Password, u.Balance)
-		if err != nil {
+		if err != nil && !errors.Is(err, storage2.ErrLoginAlreadyExists) {
 			panic(err)
 		}
 	}
 
 	for _, o := range orders {
 		err = testStorage.CreateOrder(ctx, o.UserID, o.OrderID, o.Accrual, o.Status)
-		if err != nil {
+		if err != nil && !errors.Is(err, storage2.ErrOrderAlreadyExists) {
 			panic(err)
 		}
 	}

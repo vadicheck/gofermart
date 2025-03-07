@@ -98,7 +98,7 @@ func TestNew(t *testing.T) {
 		panic(err)
 	}
 
-	err = testStorage.DeleteAllUsers(ctx, logger)
+	err = testStorage.DeleteUsers(ctx, logger, []string{"login"})
 	if err != nil {
 		panic(err)
 	}

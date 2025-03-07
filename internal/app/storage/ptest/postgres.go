@@ -100,6 +100,32 @@ func (s *Storage) DeleteAllUsers(ctx context.Context, logger logger.LogClient) e
 	return err
 }
 
+func (s *Storage) DeleteUsers(ctx context.Context, logger logger.LogClient, logins []string) error {
+	const op = "storage.postgres.DeleteAllUsers"
+	const deleteSQL = "DELETE FROM users WHERE login = $1"
+
+	stmt, err := s.db.Prepare(deleteSQL)
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			logger.Error(fmt.Errorf("prepare sql error: %w", err))
+		}
+	}()
+
+	for _, login := range logins {
+		if err != nil {
+			return fmt.Errorf("%s: %w", op, err)
+		}
+
+		_, err = stmt.ExecContext(ctx, login)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (s *Storage) CreateOrder(
 	ctx context.Context,
 	userID int,
@@ -128,7 +154,7 @@ func (s *Storage) CreateOrder(
 
 		if errors.As(err, &pgErr) && pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
 			if pgErr.Code == pgerrcode.UniqueViolation {
-				return storage.ErrLoginAlreadyExists
+				return storage.ErrOrderAlreadyExists
 			}
 		}
 

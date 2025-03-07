@@ -16,11 +16,7 @@ tasks:
       MIGRATIONS_FILE_PATH: file:///Users/chvss/web/golang/gofermart/internal/app/migration/migrations
     cmds:
       - go clean -testcache
-      - go test -v ./internal/app/handlers/gofermart/register
-      - go test -v ./internal/app/handlers/gofermart/uporder
-      - go test -v ./internal/app/handlers/gofermart/orders
-      - go test -v ./internal/app/handlers/gofermart/user/balance/withdraw
-      - go test -v ./internal/app/handlers/gofermart/user/balance/currentbalance
+      - go test ./... -cover
 
   imports:
     desc: "Run imports"

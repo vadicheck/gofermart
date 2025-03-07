@@ -2,6 +2,7 @@ package orders
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +14,7 @@ import (
 	"github.com/vadicheck/gofermart/internal/app/config"
 	"github.com/vadicheck/gofermart/internal/app/constants"
 	"github.com/vadicheck/gofermart/internal/app/log"
+	storage2 "github.com/vadicheck/gofermart/internal/app/storage"
 	"github.com/vadicheck/gofermart/internal/app/storage/postgres"
 	"github.com/vadicheck/gofermart/internal/app/storage/ptest"
 )
@@ -43,15 +45,15 @@ func TestNew(t *testing.T) {
 		responseError responseError
 	}
 	users := []userData{
-		{ID: 1, Login: "user1", Password: "passw0rd", Balance: 1000},
-		{ID: 2, Login: "user2", Password: "passw0rd", Balance: 1000},
-		{ID: 3, Login: "user3", Password: "passw0rd", Balance: 1000},
+		{ID: 1, Login: "orders1", Password: "passw0rd", Balance: 1000},
+		{ID: 2, Login: "orders2", Password: "passw0rd", Balance: 1000},
+		{ID: 3, Login: "orders3", Password: "passw0rd", Balance: 1000},
 	}
 	orders := []orderData{
-		{UserID: 1, OrderID: "123456789007", Accrual: 100, Status: "NEW"},
-		{UserID: 3, OrderID: "123456789015", Accrual: 100, Status: "NEW"},
-		{UserID: 3, OrderID: "123456789023", Accrual: 100, Status: "NEW"},
-		{UserID: 3, OrderID: "123456789031", Accrual: 100, Status: "NEW"},
+		{UserID: 1, OrderID: "9617519385", Accrual: 100, Status: "NEW"},
+		{UserID: 3, OrderID: "9864048302", Accrual: 100, Status: "NEW"},
+		{UserID: 3, OrderID: "6713493507", Accrual: 100, Status: "NEW"},
+		{UserID: 3, OrderID: "6713493507", Accrual: 100, Status: "NEW"},
 	}
 	tests := []struct {
 		name    string
@@ -104,21 +106,27 @@ func TestNew(t *testing.T) {
 		panic(err)
 	}
 
-	err = testStorage.DeleteAllUsers(ctx, logger)
+	logins := make([]string, len(users))
+
+	for i, user := range users {
+		logins[i] = user.Login
+	}
+
+	err = testStorage.DeleteUsers(ctx, logger, logins)
 	if err != nil {
 		panic(err)
 	}
 
 	for _, u := range users {
 		err = testStorage.CreateUser(ctx, u.ID, u.Login, u.Password, u.Balance)
-		if err != nil {
+		if err != nil && !errors.Is(err, storage2.ErrLoginAlreadyExists) {
 			panic(err)
 		}
 	}
 
 	for _, o := range orders {
 		err = testStorage.CreateOrder(ctx, o.UserID, o.OrderID, o.Accrual, o.Status)
-		if err != nil {
+		if err != nil && !errors.Is(err, storage2.ErrOrderAlreadyExists) {
 			panic(err)
 		}
 	}
