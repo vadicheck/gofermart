@@ -37,7 +37,7 @@ func New(
 	ctx context.Context,
 	logger logger.LogClient,
 	storage storage,
-	validator validator.Validate,
+	validator *validator.Validate,
 	balanceService balanceService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

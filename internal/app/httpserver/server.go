@@ -55,7 +55,7 @@ func New(
 	cfg *config.Config,
 	logger logger.LogClient,
 	storage gophermart.Gophermart,
-	validator validator.Validate,
+	validator *validator.Validate,
 ) *HTTPServer {
 	r := chi.NewRouter()
 

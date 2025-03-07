@@ -28,7 +28,7 @@ func New(
 	ctx context.Context,
 	jwtConfig config.JwtConfig,
 	logger logger.LogClient,
-	validator validator.Validate,
+	validator *validator.Validate,
 	storage gophermart.Gophermart,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

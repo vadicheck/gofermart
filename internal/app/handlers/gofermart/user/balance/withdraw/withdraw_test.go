@@ -177,7 +177,7 @@ func TestNew(t *testing.T) {
 				ctx,
 				logger,
 				storage,
-				*validator.New(),
+				validator.New(),
 				balanceService,
 			)
 

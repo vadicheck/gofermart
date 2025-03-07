@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"sync"
@@ -12,7 +13,7 @@ import (
 
 	"github.com/vadicheck/gofermart/internal/app/config"
 	"github.com/vadicheck/gofermart/internal/app/httpserver"
-	"github.com/vadicheck/gofermart/internal/app/log"
+	appLog "github.com/vadicheck/gofermart/internal/app/log"
 	"github.com/vadicheck/gofermart/internal/app/storage/postgres"
 	appsync "github.com/vadicheck/gofermart/internal/app/sync"
 )
@@ -23,17 +24,17 @@ func main() {
 
 	cfg, err := config.NewConfig()
 	if err != nil {
-		panic(fmt.Errorf("config read err %w", err))
+		log.Panic(fmt.Errorf("config read err %w", err))
 	}
 
-	logger, err := log.New(*cfg)
+	logger, err := appLog.New(*cfg)
 	if err != nil {
-		panic(err)
+		log.Panic(err)
 	}
 
 	storage, err := postgres.New(cfg, logger)
 	if err != nil {
-		panic(err)
+		logger.Panic(err)
 	}
 
 	httpApp := httpserver.New(
@@ -41,21 +42,21 @@ func main() {
 		cfg,
 		logger,
 		storage,
-		*validator.New(),
+		validator.New(),
 	)
 
 	syncApp := appsync.New(cfg.AccrualSystemAddress, storage, logger)
 
 	httpServer, err := httpApp.Run(logger)
 	if err != nil {
-		panic(err)
+		logger.Panic(err)
 	}
 
 	var wg sync.WaitGroup
 
 	err = syncApp.Run(ctx, &wg)
 	if err != nil {
-		panic(err)
+		logger.Panic(err)
 	}
 
 	logger.Info("app is ready")

@@ -32,7 +32,7 @@ func New(
 	jwtConfig config.JwtConfig,
 	logger logger.LogClient,
 	storage registerStorage,
-	validator validator.Validate,
+	validator *validator.Validate,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var request regRequest

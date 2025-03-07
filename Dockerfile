@@ -12,7 +12,7 @@ RUN go mod download
 COPY ./ ./
 RUN go build -o ./bin/app cmd/gophermart/main.go
 
-FROM alpine AS runner
+FROM alpine:3.21.3 AS runner
 
 COPY --from=builder /usr/local/src/bin/app /
 COPY --from=builder /usr/local/src/internal/app/migration/migrations /migrations

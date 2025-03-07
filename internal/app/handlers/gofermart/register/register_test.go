@@ -121,7 +121,7 @@ func TestNew(t *testing.T) {
 				cfg.Jwt,
 				logger,
 				storage,
-				*validator.New(),
+				validator.New(),
 			)
 
 			handler(w, req)
