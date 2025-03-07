@@ -12,7 +12,7 @@ import (
 	"github.com/vadicheck/gofermart/pkg/logger"
 )
 
-const GetOrderURL = "/api/orders/%s"
+const getOrderURL = "/api/orders/%s"
 
 type HTTPClient interface {
 	Do(req *http.Request) (*http.Response, error)
@@ -24,7 +24,7 @@ type accrualsServiceAPI struct {
 	logger     logger.LogClient
 }
 
-type Service interface {
+type Client interface {
 	GetOrder(ctx context.Context, orderID string) (*GetOrderResponse, error)
 }
 
@@ -32,7 +32,7 @@ func New(
 	httpClient HTTPClient,
 	accrualSystemAddress string,
 	logger logger.LogClient,
-) Service {
+) Client {
 	return &accrualsServiceAPI{
 		baseURL:    accrualSystemAddress,
 		httpClient: httpClient,
@@ -41,7 +41,7 @@ func New(
 }
 
 func (f *accrualsServiceAPI) GetOrder(ctx context.Context, orderID string) (*GetOrderResponse, error) {
-	buf, err := f.doGet(ctx, fmt.Sprintf(GetOrderURL, orderID))
+	buf, err := f.doGet(ctx, fmt.Sprintf(getOrderURL, orderID))
 	if err != nil {
 		return nil, fmt.Errorf("failed to do get: %w", err)
 	}

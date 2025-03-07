@@ -110,7 +110,7 @@ func (sa *App) Run(ctx context.Context, wg *sync.WaitGroup) error {
 
 func (sa *App) handleOrder(
 	ctx context.Context,
-	accrualService accrualservice.Service,
+	accrualService accrualservice.Client,
 	m *sync.Mutex,
 	jobs <-chan string,
 ) {

@@ -191,7 +191,7 @@ func (s *Storage) CreateTransaction(
 
 		if errors.As(err, &pgErr) && pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
 			if pgErr.Code == pgerrcode.UniqueViolation {
-				return storage.ErrLoginAlreadyExists
+				return storage.ErrOrderTransactionAlreadyExists
 			}
 		}
 

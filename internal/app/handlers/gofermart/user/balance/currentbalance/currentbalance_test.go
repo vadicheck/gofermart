@@ -53,21 +53,21 @@ func TestNew(t *testing.T) {
 		responseError responseError
 	}
 	users := []userData{
-		{ID: 1, Login: "currentbalance1", Password: "passw0rd", Balance: 1000},
-		{ID: 2, Login: "currentbalance2", Password: "passw0rd", Balance: 1000},
-		{ID: 3, Login: "currentbalance3", Password: "passw0rd", Balance: 1000},
+		{ID: 101, Login: "currentbalance1", Password: "passw0rd", Balance: 1000},
+		{ID: 102, Login: "currentbalance2", Password: "passw0rd", Balance: 1000},
+		{ID: 103, Login: "currentbalance3", Password: "passw0rd", Balance: 1000},
 	}
 	orders := []orderData{
-		{UserID: 1, OrderID: "123456789007", Accrual: 100, Status: "NEW"},
-		{UserID: 3, OrderID: "123456789015", Accrual: 100, Status: "NEW"},
-		{UserID: 3, OrderID: "123456789023", Accrual: 100, Status: "NEW"},
-		{UserID: 3, OrderID: "123456789031", Accrual: 100, Status: "NEW"},
+		{UserID: 101, OrderID: "1135306643", Accrual: 100, Status: "NEW"},
+		{UserID: 103, OrderID: "3398206148", Accrual: 100, Status: "NEW"},
+		{UserID: 103, OrderID: "2959282498", Accrual: 100, Status: "NEW"},
+		{UserID: 103, OrderID: "4105553319", Accrual: 100, Status: "NEW"},
 	}
 	transactions := []transactionData{
-		{UserID: 1, OrderID: "123456789007", Sum: 100},
-		{UserID: 3, OrderID: "123456789015", Sum: 100},
-		{UserID: 3, OrderID: "123456789023", Sum: 100},
-		{UserID: 3, OrderID: "123456789031", Sum: 100},
+		{UserID: 101, OrderID: "1135306643", Sum: 100},
+		{UserID: 103, OrderID: "3398206148", Sum: 100},
+		{UserID: 103, OrderID: "2959282498", Sum: 100},
+		{UserID: 103, OrderID: "4105553319", Sum: 100},
 	}
 	tests := []struct {
 		name     string
@@ -77,7 +77,7 @@ func TestNew(t *testing.T) {
 	}{
 		{
 			name:   "0 withdrawn #1",
-			userID: 2,
+			userID: 102,
 			want: want{
 				contentType:   "application/json",
 				statusCode:    http.StatusOK,
@@ -90,7 +90,7 @@ func TestNew(t *testing.T) {
 		},
 		{
 			name:   "300 withdrawn #2",
-			userID: 3,
+			userID: 103,
 			want: want{
 				contentType:   "application/json",
 				statusCode:    http.StatusOK,

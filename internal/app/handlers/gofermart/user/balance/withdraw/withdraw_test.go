@@ -50,15 +50,15 @@ func TestNew(t *testing.T) {
 		responseError responseError
 	}
 	users := []userData{
-		{ID: 1, Login: "withdraw1", Password: "passw0rd", Balance: 1000},
-		{ID: 2, Login: "withdraw2", Password: "passw0rd", Balance: 1000},
-		{ID: 3, Login: "withdraw3", Password: "passw0rd", Balance: 1000},
+		{ID: 11, Login: "withdraw1", Password: "passw0rd", Balance: 1000},
+		{ID: 12, Login: "withdraw2", Password: "passw0rd", Balance: 1000},
+		{ID: 13, Login: "withdraw3", Password: "passw0rd", Balance: 1000},
 	}
 	orders := []orderData{
-		{UserID: 1, OrderID: "123456789007", Accrual: 100, Status: "NEW"},
-		{UserID: 3, OrderID: "123456789015", Accrual: 100, Status: "NEW"},
-		{UserID: 3, OrderID: "123456789023", Accrual: 100, Status: "NEW"},
-		{UserID: 3, OrderID: "123456789031", Accrual: 100, Status: "NEW"},
+		{UserID: 11, OrderID: "9317467240", Accrual: 100, Status: "NEW"},
+		{UserID: 13, OrderID: "5176102027", Accrual: 100, Status: "NEW"},
+		{UserID: 13, OrderID: "7757898411", Accrual: 100, Status: "NEW"},
+		{UserID: 13, OrderID: "4112129418", Accrual: 100, Status: "NEW"},
 	}
 	tests := []struct {
 		name    string
@@ -68,7 +68,7 @@ func TestNew(t *testing.T) {
 	}{
 		{
 			name:   "success withdraw #1",
-			userID: 1,
+			userID: 11,
 			want: want{
 				contentType:   "application/json",
 				statusCode:    http.StatusOK,
@@ -81,7 +81,7 @@ func TestNew(t *testing.T) {
 		},
 		{
 			name:   "order has been processed #2",
-			userID: 1,
+			userID: 11,
 			want: want{
 				contentType:   "application/json",
 				statusCode:    http.StatusUnprocessableEntity,
@@ -94,7 +94,7 @@ func TestNew(t *testing.T) {
 		},
 		{
 			name:   "insufficient funds #3",
-			userID: 1,
+			userID: 11,
 			want: want{
 				contentType:   "application/json",
 				statusCode:    http.StatusPaymentRequired,
@@ -107,7 +107,7 @@ func TestNew(t *testing.T) {
 		},
 		{
 			name:   "incorrect order number #4",
-			userID: 1,
+			userID: 11,
 			want: want{
 				contentType:   "application/json",
 				statusCode:    http.StatusUnprocessableEntity,
