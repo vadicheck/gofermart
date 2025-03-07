@@ -69,11 +69,7 @@ jobs:
           DATABASE_URI: postgresql://postgres:postgres@postgres/praktikum?sslmode=disable
         run: |
           echo "My tests"
-          go test -v /__w/gofermart/gofermart/internal/app/handlers/gofermart/register
-          go test -v /__w/gofermart/gofermart/internal/app/handlers/gofermart/uporder
-          go test -v /__w/gofermart/gofermart/internal/app/handlers/gofermart/orders
-          go test -v /__w/gofermart/gofermart/internal/app/handlers/gofermart/user/balance/withdraw
-          go test -v /__w/gofermart/gofermart/internal/app/handlers/gofermart/user/balance/currentbalance
+          go test ./... -cover
 
   golangci:
     name: lint

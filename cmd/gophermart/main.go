@@ -15,6 +15,7 @@ import (
 	"github.com/vadicheck/gofermart/internal/app/httpserver"
 	appLog "github.com/vadicheck/gofermart/internal/app/log"
 	"github.com/vadicheck/gofermart/internal/app/storage/postgres"
+	storSync "github.com/vadicheck/gofermart/internal/app/storage/sync"
 	appsync "github.com/vadicheck/gofermart/internal/app/sync"
 )
 
@@ -45,7 +46,12 @@ func main() {
 		validator.New(),
 	)
 
-	syncApp := appsync.New(cfg.AccrualSystemAddress, storage, logger)
+	syncStorage, err := storSync.New(storage, logger)
+	if err != nil {
+		logger.Panic(err)
+	}
+
+	syncApp := appsync.New(cfg.AccrualSystemAddress, storage, syncStorage, logger)
 
 	httpServer, err := httpApp.Run(logger)
 	if err != nil {

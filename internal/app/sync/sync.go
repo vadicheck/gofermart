@@ -21,11 +21,16 @@ const httpClientTimeout = 10000
 
 type App struct {
 	accrualAddress string
-	orderService   orderService
+	orderService   OrderService
+	storage        storage
 	logger         logger.LogClient
 }
 
-type orderService interface {
+type storage interface {
+	Apply(ctx context.Context, orderID string, userID int, orderResponse *accrualservice.GetOrderResponse) error
+}
+
+type OrderService interface {
 	BeginTransaction(ctx context.Context) (*sql.Tx, error)
 
 	GetUserByID(ctx context.Context, userID int) (gofermart.User, error)
@@ -38,12 +43,14 @@ type orderService interface {
 
 func New(
 	accrualAddress string,
-	orderService orderService,
+	orderService OrderService,
+	storage storage,
 	logger logger.LogClient,
 ) *App {
 	return &App{
 		accrualAddress: accrualAddress,
 		orderService:   orderService,
+		storage:        storage,
 		logger:         logger,
 	}
 }
@@ -135,61 +142,11 @@ func (sa *App) handleOrder(
 		}
 
 		m.Lock()
-		err = sa.apply(ctx, orderID, order.UserID, orderResponse)
+		err = sa.storage.Apply(ctx, orderID, order.UserID, orderResponse)
 		m.Unlock()
 
 		if err != nil {
 			sa.logger.Error(fmt.Errorf("failed to apply order changes. err: %w", err))
 		}
 	}
-}
-
-func (sa *App) apply(
-	ctx context.Context,
-	orderID string,
-	userID int,
-	orderResponse *accrualservice.GetOrderResponse,
-) error {
-	tx, err := sa.orderService.BeginTransaction(ctx)
-	if err != nil {
-		return fmt.Errorf("can't begin transaction: %w", err)
-	}
-
-	defer func() {
-		if err = tx.Rollback(); err != nil {
-			if !errors.Is(err, sql.ErrTxDone) {
-				sa.logger.Error(fmt.Errorf("transaction rollback error: %w", err))
-			}
-		}
-	}()
-
-	if constants.OrderStatus(orderResponse.Status) == constants.StatusProcessed {
-		user, getErr := sa.orderService.GetUserByID(ctx, userID)
-		if getErr != nil {
-			return errors.New("user not found")
-		}
-
-		err = sa.orderService.ChangeUserBalance(ctx, user.ID, user.Balance+orderResponse.Accrual)
-		if err != nil {
-			return fmt.Errorf("failed to change user balance. err: %w", err)
-		}
-	}
-
-	err = sa.orderService.UpdateOrder(
-		ctx,
-		orderID,
-		constants.OrderStatus(orderResponse.Status),
-		orderResponse.Accrual,
-	)
-
-	if err != nil {
-		return fmt.Errorf("failed to update order. err: %w", err)
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return fmt.Errorf("can't commit transaction: %w", err)
-	}
-
-	return nil
 }
