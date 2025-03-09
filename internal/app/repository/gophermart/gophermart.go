@@ -23,6 +23,7 @@ type Gophermart interface {
 	UpdateOrder(ctx context.Context, orderID string, newStatus constants.OrderStatus, accrual float32) error
 
 	CreateTransaction(ctx context.Context, userID int, orderID string, sum float32) error
+	CreateTransactionAndChangeBalance(ctx context.Context, userID int, orderID string, sum float32, newBalance float32) error
 	GetTransactionsByUserID(ctx context.Context, userID int) ([]gofermart.Transaction, error)
 
 	GetTotalWithdrawn(ctx context.Context, userID int) (float32, error)

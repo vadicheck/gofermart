@@ -354,6 +354,44 @@ func (s *Storage) GetTotalWithdrawn(ctx context.Context, userID int) (float32, e
 	return sum, nil
 }
 
+func (s *Storage) CreateTransactionAndChangeBalance(
+	ctx context.Context,
+	userID int,
+	orderID string,
+	sum float32,
+	newBalance float32,
+) error {
+	tx, err := s.BeginTransaction(ctx)
+	if err != nil {
+		return fmt.Errorf("can't begin transaction: %w", err)
+	}
+
+	defer func() {
+		if err = tx.Rollback(); err != nil {
+			if !errors.Is(err, sql.ErrTxDone) {
+				s.logger.Error(fmt.Errorf("transaction rollback error: %w", err))
+			}
+		}
+	}()
+
+	err = s.CreateTransaction(ctx, userID, orderID, sum)
+	if err != nil {
+		return err
+	}
+
+	err = s.ChangeUserBalance(ctx, userID, newBalance)
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("can't commit transaction: %w", err)
+	}
+
+	return nil
+}
+
 func (s *Storage) fillUser(row *sql.Row, op string) (gofermart.User, error) {
 	var user gofermart.User
 
