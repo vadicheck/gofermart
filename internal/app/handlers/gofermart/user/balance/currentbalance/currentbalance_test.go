@@ -125,14 +125,12 @@ func TestNew(t *testing.T) {
 		panic(err)
 	}
 
-	logins := make([]string, len(users))
-
+	userIDs := make([]int, len(users))
 	for i, user := range users {
-		logins[i] = user.Login
+		userIDs[i] = user.ID
 	}
 
-	err = testStorage.DeleteUsers(ctx, logger, logins)
-	if err != nil {
+	if err = testStorage.FullDeleteUsers(ctx, logger, userIDs); err != nil {
 		panic(err)
 	}
 

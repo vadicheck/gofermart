@@ -122,21 +122,20 @@ func TestNew(t *testing.T) {
 		panic(err)
 	}
 
-	logins := make([]string, len(users))
-
+	userIDs := make([]int, len(users))
 	for i, user := range users {
-		logins[i] = user.Login
+		userIDs[i] = user.ID
 	}
 
-	err = testStorage.DeleteUsers(ctx, logger, logins)
-	if err != nil {
+	if err = testStorage.FullDeleteUsers(ctx, logger, userIDs); err != nil {
 		panic(err)
 	}
 
 	for _, u := range users {
-		err = testStorage.CreateUser(ctx, u.ID, u.Login, u.Password, u.Balance)
-		if err != nil && !errors.Is(err, storage2.ErrLoginAlreadyExists) {
-			panic(err)
+		if err = testStorage.CreateUser(ctx, u.ID, u.Login, u.Password, u.Balance); err != nil {
+			if !errors.Is(err, storage2.ErrLoginAlreadyExists) {
+				panic(err)
+			}
 		}
 	}
 

@@ -45,15 +45,15 @@ func TestNew(t *testing.T) {
 		responseError responseError
 	}
 	users := []userData{
-		{ID: 1, Login: "orders1", Password: "passw0rd", Balance: 1000},
-		{ID: 2, Login: "orders2", Password: "passw0rd", Balance: 1000},
-		{ID: 3, Login: "orders3", Password: "passw0rd", Balance: 1000},
+		{ID: 1001, Login: "orders1", Password: "passw0rd", Balance: 1000},
+		{ID: 1002, Login: "orders2", Password: "passw0rd", Balance: 1000},
+		{ID: 1003, Login: "orders3", Password: "passw0rd", Balance: 1000},
 	}
 	orders := []orderData{
-		{UserID: 1, OrderID: "9617519385", Accrual: 100, Status: "NEW"},
-		{UserID: 3, OrderID: "9864048302", Accrual: 100, Status: "NEW"},
-		{UserID: 3, OrderID: "6713493507", Accrual: 100, Status: "NEW"},
-		{UserID: 3, OrderID: "6713493507", Accrual: 100, Status: "NEW"},
+		{UserID: 1001, OrderID: "9617519385", Accrual: 100, Status: "NEW"},
+		{UserID: 1003, OrderID: "9864048302", Accrual: 100, Status: "NEW"},
+		{UserID: 1003, OrderID: "6713493507", Accrual: 100, Status: "NEW"},
+		{UserID: 1003, OrderID: "6713493507", Accrual: 100, Status: "NEW"},
 	}
 	tests := []struct {
 		name    string
@@ -68,7 +68,7 @@ func TestNew(t *testing.T) {
 				responseError: responseError{},
 			},
 			request: request{
-				UserID: 1,
+				UserID: 1001,
 			},
 		},
 		{
@@ -79,7 +79,7 @@ func TestNew(t *testing.T) {
 				responseError: responseError{},
 			},
 			request: request{
-				UserID: 2,
+				UserID: 1002,
 			},
 		},
 	}
@@ -106,28 +106,28 @@ func TestNew(t *testing.T) {
 		panic(err)
 	}
 
-	logins := make([]string, len(users))
-
+	userIDs := make([]int, len(users))
 	for i, user := range users {
-		logins[i] = user.Login
+		userIDs[i] = user.ID
 	}
 
-	err = testStorage.DeleteUsers(ctx, logger, logins)
-	if err != nil {
+	if err = testStorage.FullDeleteUsers(ctx, logger, userIDs); err != nil {
 		panic(err)
 	}
 
 	for _, u := range users {
-		err = testStorage.CreateUser(ctx, u.ID, u.Login, u.Password, u.Balance)
-		if err != nil && !errors.Is(err, storage2.ErrLoginAlreadyExists) {
-			panic(err)
+		if err = testStorage.CreateUser(ctx, u.ID, u.Login, u.Password, u.Balance); err != nil {
+			if !errors.Is(err, storage2.ErrLoginAlreadyExists) {
+				panic(err)
+			}
 		}
 	}
 
 	for _, o := range orders {
-		err = testStorage.CreateOrder(ctx, o.UserID, o.OrderID, o.Accrual, o.Status)
-		if err != nil && !errors.Is(err, storage2.ErrOrderAlreadyExists) {
-			panic(err)
+		if err = testStorage.CreateOrder(ctx, o.UserID, o.OrderID, o.Accrual, o.Status); err != nil {
+			if !errors.Is(err, storage2.ErrOrderAlreadyExists) {
+				panic(err)
+			}
 		}
 	}
 

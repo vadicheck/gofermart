@@ -64,7 +64,7 @@ func (sa *App) Run(ctx context.Context, wg *sync.WaitGroup) error {
 		time.Millisecond*time.Duration(httpClientTimeout),
 		sa.logger,
 	)
-	accrualService := accrualservice.New(transport, sa.accrualAddress, sa.logger)
+	accrualClient := accrualservice.New(transport, sa.accrualAddress, sa.logger)
 
 	var m sync.Mutex
 
@@ -77,7 +77,7 @@ func (sa *App) Run(ctx context.Context, wg *sync.WaitGroup) error {
 		defer close(results)
 
 		for w := 1; w <= 5; w++ {
-			go sa.handleOrder(ctx, accrualService, &m, jobs)
+			go sa.handleOrder(ctx, accrualClient, &m, jobs)
 		}
 
 		statuses := []constants.OrderStatus{
@@ -110,7 +110,7 @@ func (sa *App) Run(ctx context.Context, wg *sync.WaitGroup) error {
 
 func (sa *App) handleOrder(
 	ctx context.Context,
-	accrualService accrualservice.Client,
+	accrualClient *accrualservice.AccrualsClientAPI,
 	m *sync.Mutex,
 	jobs <-chan string,
 ) {
@@ -132,7 +132,7 @@ func (sa *App) handleOrder(
 			continue
 		}
 
-		orderResponse, err := accrualService.GetOrder(ctx, orderID)
+		orderResponse, err := accrualClient.GetOrder(ctx, orderID)
 		if err != nil {
 			sa.logger.Error(fmt.Errorf("failed to get order from accrual system. err: %w", err))
 		}

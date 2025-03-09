@@ -81,27 +81,34 @@ func (s *Storage) CreateUser(
 	return nil
 }
 
-func (s *Storage) DeleteAllUsers(ctx context.Context, logger logger.LogClient) error {
-	const op = "storage.postgres.DeleteAllUsers"
-	const deleteSQL = "DELETE FROM users WHERE id <> 0"
+func (s *Storage) DeleteUsers(ctx context.Context, logger logger.LogClient, userIDs []int) error {
+	const op = "storage.postgres.DeleteUsers"
+	const deleteSQL = "DELETE FROM users WHERE id = $1"
 
 	stmt, err := s.db.Prepare(deleteSQL)
-	if err != nil {
-		return fmt.Errorf("%s: %w", op, err)
-	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			logger.Error(fmt.Errorf("prepare sql error: %w", err))
 		}
 	}()
 
-	_, err = stmt.ExecContext(ctx)
+	for _, userID := range userIDs {
+		if err != nil {
+			return fmt.Errorf("%s: %w", op, err)
+		}
 
-	return err
+		_, err = stmt.ExecContext(ctx, userID)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
-func (s *Storage) DeleteUsers(ctx context.Context, logger logger.LogClient, logins []string) error {
-	const op = "storage.postgres.DeleteAllUsers"
+func (s *Storage) DeleteUsersByLogin(ctx context.Context, logger logger.LogClient, logins []string) error {
+	const op = "storage.postgres.DeleteUsersByLogin"
 	const deleteSQL = "DELETE FROM users WHERE login = $1"
 
 	stmt, err := s.db.Prepare(deleteSQL)
@@ -164,6 +171,32 @@ func (s *Storage) CreateOrder(
 	return nil
 }
 
+func (s *Storage) DeleteOrders(ctx context.Context, logger logger.LogClient, userIDs []int) error {
+	const op = "storage.postgres.DeleteOrders"
+	const deleteSQL = "DELETE FROM orders WHERE user_id = $1"
+
+	stmt, err := s.db.Prepare(deleteSQL)
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			logger.Error(fmt.Errorf("prepare sql error: %w", err))
+		}
+	}()
+
+	for _, userID := range userIDs {
+		if err != nil {
+			return fmt.Errorf("%s: %w", op, err)
+		}
+
+		_, err = stmt.ExecContext(ctx, userID)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (s *Storage) CreateTransaction(
 	ctx context.Context,
 	userID int,
@@ -195,6 +228,50 @@ func (s *Storage) CreateTransaction(
 			}
 		}
 
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	return nil
+}
+
+func (s *Storage) DeleteTransactions(ctx context.Context, logger logger.LogClient, userIDs []int) error {
+	const op = "storage.postgres.DeleteTransactions"
+	const deleteSQL = "DELETE FROM transactions WHERE user_id = $1"
+
+	stmt, err := s.db.Prepare(deleteSQL)
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			logger.Error(fmt.Errorf("prepare sql error: %w", err))
+		}
+	}()
+
+	for _, userID := range userIDs {
+		if err != nil {
+			return fmt.Errorf("%s: %w", op, err)
+		}
+
+		_, err = stmt.ExecContext(ctx, userID)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *Storage) FullDeleteUsers(ctx context.Context, logger logger.LogClient, userIDs []int) error {
+	const op = "storage.postgres.FullDeleteUsers"
+
+	if err := s.DeleteTransactions(ctx, logger, userIDs); err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	if err := s.DeleteOrders(ctx, logger, userIDs); err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	if err := s.DeleteUsers(ctx, logger, userIDs); err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 

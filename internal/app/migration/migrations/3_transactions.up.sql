@@ -8,7 +8,6 @@ CREATE TABLE IF NOT EXISTS transactions
     CONSTRAINT fk_user
         FOREIGN KEY (user_id)
             REFERENCES users (id)
-            ON DELETE CASCADE
 );
 
 CREATE UNIQUE INDEX idx_tr_user_order ON orders (user_id, order_id);
