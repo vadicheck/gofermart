@@ -12,7 +12,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
-    container: golang:1.23
+    container: golang:1.22
 
     services:
       postgres:
@@ -62,3 +62,24 @@ jobs:
             -accrual-host=localhost \
             -accrual-port=$(random unused-port) \
             -accrual-database-uri="postgresql://postgres:postgres@postgres/praktikum?sslmode=disable"
+
+      - name: My Test
+        env:
+          MIGRATIONS_FILE_PATH: file:///__w/gofermart/gofermart/internal/app/migration/migrations
+          DATABASE_URI: postgresql://postgres:postgres@postgres/praktikum?sslmode=disable
+        run: |
+          echo "My tests"
+          go test ./... -cover
+
+  golangci:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.64

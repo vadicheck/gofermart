@@ -1,0 +1,21 @@
+x-common: &common
+  restart: unless-stopped
+
+services:
+  database:
+    ports:
+      - ${POSTGRES_PORT:-5440}:5432
+  test-database:
+    image: postgres:15-alpine
+    container_name: test-gofermart-database
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: 1234
+    ports:
+      - ${TEST_POSTGRES_PORT:-5445}:5432
+    env_file:
+      - .env
+    volumes:
+      - ./docker/test/db/data:/var/lib/postgresql/data:rw
+    <<: *common
